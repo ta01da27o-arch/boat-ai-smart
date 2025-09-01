@@ -1,0 +1,9 @@
+{
+  "race": "浜名湖1R",
+  "date": "2025-08-30",
+  "prediction": [
+    {"boat": 1, "style": "逃げ"},
+    {"boat": 2, "style": "差し"},
+    {"boat": 3, "style": "まくり"}
+  ]
+}
