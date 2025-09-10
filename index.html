@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ボートST</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="title">ボートST</header>
+
+    <!-- 環境 -->
+    <section class="env">
+      <div class="env-row">
+        <div class="env-label">風向</div>
+        <div class="wind-buttons">
+          <button class="wind-btn" data-dir="→">→</button>
+          <button class="wind-btn" data-dir="←">←</button>
+          <button class="wind-btn" data-dir="↑">↑</button>
+          <button class="wind-btn" data-dir="↓">↓</button>
+        </div>
+        <div id="windDir" class="env-value">→</div>
+      </div>
+      <div class="env-row">
+        <div class="env-label">風速</div>
+        <input id="windSpeed" type="number" step="0.1" placeholder="m/s" />
+        <div id="windSpeedVal" class="env-value">-</div>
+      </div>
+      <div class="env-row">
+        <div class="env-label">波高</div>
+        <input id="waveHeight" type="number" step="1" placeholder="cm" />
+        <div id="waveHeightVal" class="env-value">-</div>
+      </div>
+    </section>
+
+    <!-- 上段：平均ST 表（左） / 直近ST 表（右） -->
+    <section class="grid-2x2">
+      <div class="panel" id="avgPanel">
+        <div class="panel-title">平均スタートタイミング表</div>
+        <table id="avgTable">
+          <thead>
+            <tr><th>枠</th><th>選手番号</th><th>平均ST</th><th>表示</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="panel" id="recentPanel">
+        <div class="panel-title">直近スタートタイミング表</div>
+        <table id="recentTable">
+          <thead>
+            <tr><th>枠</th><th>チルト</th><th>直近ST</th><th>表示</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- 下段：スタート後展開図（左） -->
+      <div class="panel" id="postStartPanel">
+        <div class="panel-title">スタートライン後の展開図</div>
+        <canvas id="postStartCanvas"></canvas>
+      </div>
+
+      <!-- 1マーク旋回展開図（右） -->
+      <div class="panel" id="markPanel">
+        <div class="panel-title">1マーク旋回展開図</div>
+        <canvas id="markCanvas"></canvas>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button id="reloadBtn">data.json を再読み込み</button>
+      <button id="resetBtn">UI をリセット</button>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

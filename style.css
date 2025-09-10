@@ -1,0 +1,99 @@
+/* style.css */
+/* 全体コンテナ：横7cm × 縦15cm 固定 */
+:root {
+  --width-cm: 7cm;
+  --height-cm: 15cm;
+  --panel-gap: 6px;
+  --accent: #007acc;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0}
+body{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#f3f7fb;
+  font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+}
+.app{
+  width:var(--width-cm);
+  height:var(--height-cm);
+  background:#fff;
+  box-shadow:0 6px 20px rgba(0,0,0,0.12);
+  border-radius:8px;
+  padding:8px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+/* タイトル */
+.title{
+  text-align:center;
+  font-weight:700;
+  font-size:14px;
+  padding:4px 0;
+}
+
+/* 環境入力（横長表示） */
+.env{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  justify-content:space-between;
+  font-size:11px;
+}
+.env-row{display:flex;align-items:center;gap:6px}
+.env-label{min-width:36px;text-align:left;font-size:11px}
+.wind-buttons{display:flex;gap:4px}
+.wind-btn{
+  padding:3px 6px;
+  font-size:12px;
+  border-radius:4px;
+  border:1px solid #ccc;
+  background:#fff;
+}
+.wind-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.env-value{min-width:34px;text-align:left;font-weight:600;font-size:12px}
+.env input{width:50px;padding:3px;border-radius:4px;border:1px solid #ccc;font-size:12px}
+
+/* 2x2 グリッド - 各パネルを同じサイズに */
+.grid-2x2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap:6px;
+  flex:1 1 auto; /* expand */
+}
+
+/* パネル */
+.panel{
+  background:#fff;
+  border:1px solid #e6eef8;
+  border-radius:6px;
+  padding:4px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  overflow:hidden;
+}
+.panel-title{font-size:11px;font-weight:600;text-align:center}
+
+/* テーブル（表と画像をセル内に表示） */
+table{width:100%;border-collapse:collapse;font-size:10px}
+thead th{font-size:10px;background:var(--accent);color:#fff;padding:4px}
+td,th{border:1px solid #e0e6ef;padding:3px;text-align:center;vertical-align:middle}
+td .boat-cell{width:100%;height:32px;display:flex;align-items:center;justify-content:center}
+
+/* Canvas サイズ（パネル内で余白考慮） */
+canvas{
+  width:100%;
+  height:100%;
+  display:block;
+  border-radius:4px;
+  background: linear-gradient(180deg,#86d1f7,#0288d1); /* 水面色 */
+}
+
+/* controls */
+.controls{display:flex;gap:6px;justify-content:flex-end}
+.controls button{padding:4px 8px;border-radius:6px;border:0;background:var(--accent);color:#fff;font-size:11px}
