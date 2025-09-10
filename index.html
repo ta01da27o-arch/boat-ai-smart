@@ -1,87 +1,88 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>スタートタイミング表示</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-      background: #f0f0f0;
-    }
-    .container {
-      display: flex;
-      justify-content: space-around;
-      margin-bottom: 30px;
-    }
-    table {
-      border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      width: 45%;
-    }
-    th {
-      background: #007acc;
-      color: #fff;
-      padding: 8px;
-      text-align: center;
-    }
-    td {
-      border: 1px solid #ccc;
-      padding: 4px;
-      text-align: center;
-    }
-    svg {
-      width: 80px;
-      height: 30px;
-    }
-    .turn-mark {
-      width: 0;
-      height: 0;
-      border-left: 20px solid transparent;
-      border-right: 20px solid transparent;
-      border-bottom: 30px solid orange;
-      margin: 20px auto;
-    }
-    .race-diagram {
-      text-align: center;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ボートST（Start Timing）表示</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>スタートタイミング表示</h1>
+  <header class="header">
+    <h1>ボートST</h1>
+  </header>
 
-  <div class="container">
-    <!-- 平均ST -->
-    <table>
-      <tr><th colspan="2">平均スタートタイミング表</th></tr>
-      <tr><th>枠番</th><th>ボート</th></tr>
-      <tr><td>1</td><td><svg><polygon points="0,15 20,0 20,30" fill="white"/><rect x="20" y="5" width="60" height="20" fill="white" stroke="black"/></svg></td></tr>
-      <tr><td>2</td><td><svg><polygon points="0,15 20,0 20,30" fill="black"/><rect x="20" y="5" width="60" height="20" fill="black" stroke="black"/></svg></td></tr>
-      <tr><td>3</td><td><svg><polygon points="0,15 20,0 20,30" fill="red"/><rect x="20" y="5" width="60" height="20" fill="red" stroke="black"/></svg></td></tr>
-      <tr><td>4</td><td><svg><polygon points="0,15 20,0 20,30" fill="blue"/><rect x="20" y="5" width="60" height="20" fill="blue" stroke="black"/></svg></td></tr>
-      <tr><td>5</td><td><svg><polygon points="0,15 20,0 20,30" fill="yellow"/><rect x="20" y="5" width="60" height="20" fill="yellow" stroke="black"/></svg></td></tr>
-      <tr><td>6</td><td><svg><polygon points="0,15 20,0 20,30" fill="green"/><rect x="20" y="5" width="60" height="20" fill="green" stroke="black"/></svg></td></tr>
-    </table>
+  <main class="main">
+    <!-- 上段：環境 + 並列テーブル -->
+    <section class="top-row">
+      <div class="env-panel card">
+        <h2>環境</h2>
+        <div class="env-row">
+          <label>風向</label>
+          <div class="wind-buttons">
+            <button data-dir="→">→</button>
+            <button data-dir="←">←</button>
+            <button data-dir="↑">↑</button>
+            <button data-dir="↓">↓</button>
+          </div>
+          <div class="env-value" id="windDirDisplay">→</div>
+        </div>
+        <div class="env-row">
+          <label for="windSpeed">風速 (m)</label>
+          <input id="windSpeed" type="number" step="0.1" value="2.5"/>
+          <span id="windSpeedDisplay">2.5 m</span>
+        </div>
+        <div class="env-row">
+          <label for="wave">波高 (cm)</label>
+          <input id="wave" type="number" step="1" value="10"/>
+          <span id="waveDisplay">10 cm</span>
+        </div>
+      </div>
 
-    <!-- 直近ST -->
-    <table>
-      <tr><th colspan="2">直近スタートタイミング表</th></tr>
-      <tr><th>枠番</th><th>ボート</th></tr>
-      <tr><td>1</td><td><svg><polygon points="0,15 20,0 20,30" fill="white"/><rect x="20" y="5" width="60" height="20" fill="white" stroke="black"/></svg></td></tr>
-      <tr><td>2</td><td><svg><polygon points="0,15 20,0 20,30" fill="black"/><rect x="20" y="5" width="60" height="20" fill="black" stroke="black"/></svg></td></tr>
-      <tr><td>3</td><td><svg><polygon points="0,15 20,0 20,30" fill="red"/><rect x="20" y="5" width="60" height="20" fill="red" stroke="black"/></svg></td></tr>
-      <tr><td>4</td><td><svg><polygon points="0,15 20,0 20,30" fill="blue"/><rect x="20" y="5" width="60" height="20" fill="blue" stroke="black"/></svg></td></tr>
-      <tr><td>5</td><td><svg><polygon points="0,15 20,0 20,30" fill="yellow"/><rect x="20" y="5" width="60" height="20" fill="yellow" stroke="black"/></svg></td></tr>
-      <tr><td>6</td><td><svg><polygon points="0,15 20,0 20,30" fill="green"/><rect x="20" y="5" width="60" height="20" fill="green" stroke="black"/></svg></td></tr>
-    </table>
-  </div>
+      <div class="tables card">
+        <div class="table-box">
+          <h3>平均スタートタイミング表</h3>
+          <table id="avgTable">
+            <thead>
+              <tr><th>枠</th><th>選手番号</th><th>平均ST</th><th>表示</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
 
-  <!-- 1マーク展開図 -->
-  <div class="race-diagram">
-    <h2>1マーク旋回展開図</h2>
-    <div class="turn-mark"></div>
-    <p>ターンマークを配置しました</p>
-  </div>
+        <div class="table-box">
+          <h3>直近スタートタイミング表</h3>
+          <table id="recentTable">
+            <thead>
+              <tr><th>枠</th><th>チルト</th><th>直近ST</th><th>表示</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 下段：左=スタートライン後の展開図、右=1マーク旋回展開図 -->
+    <section class="bottom-row">
+      <div class="diagram card" id="postStartBox">
+        <h3>スタートライン後の展開図</h3>
+        <svg id="postStartSVG" viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="legend">（スタートライン＝縦線、右向きが進行方向）</div>
+      </div>
+
+      <div class="diagram card" id="markBox">
+        <h3>1マーク旋回展開図</h3>
+        <svg id="markSVG" viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="legend">（ターンマークは赤い三角）</div>
+      </div>
+    </section>
+
+    <section class="controls card">
+      <button id="refreshBtn">外部データ(サンプル)を再取得</button>
+      <button id="resetBtn">入力をリセット</button>
+      <div class="note">※ このデモはローカルのサンプルデータ (`/data/*.json`) を使用します。</div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
