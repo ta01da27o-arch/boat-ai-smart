@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ボートSTシミュレーター</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #e6f2ff;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #004080;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .container {
+      padding: 10px;
+    }
+    .env-section {
+      background: white;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .env-section h2 {
+      font-size: 16px;
+      margin: 0 0 5px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+    .row span {
+      width: 70px;
+      display: inline-block;
+    }
+    .btn-group button {
+      margin: 0 3px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    table th, table td {
+      border: 1px solid #999;
+      padding: 5px;
+      text-align: center;
+      font-size: 14px;
+    }
+    .board {
+      background: #99ccff;
+      border: 2px solid #004080;
+      border-radius: 8px;
+      margin: 10px 0;
+      padding: 10px;
+      text-align: center;
+    }
+    .boat {
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+      margin: 5px;
+      border-radius: 4px;
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+      line-height: 20px;
+    }
+    .boat1 { background: #ccc; }
+    .boat2 { background: #000; }
+    .boat3 { background: red; }
+    .boat4 { background: blue; }
+    .boat5 { background: gold; }
+    .boat6 { background: green; }
+    canvas {
+      width: 100%;
+      height: 250px;
+      border: 1px solid #004080;
+      background: #66b3ff;
+    }
+  </style>
+</head>
+<body>
+  <header>ボートSTシミュレーター</header>
+  <div class="container">
+    
+    <!-- 環境設定 -->
+    <div class="env-section">
+      <h2>環境設定</h2>
+      <div class="row">
+        <span>風向き:</span>
+        <div class="btn-group">
+          <button onclick="setWind('→')">→</button>
+          <button onclick="setWind('←')">←</button>
+          <button onclick="setWind('↑')">↑</button>
+          <button onclick="setWind('↓')">↓</button>
+        </div>
+        <span id="windDir"></span>
+      </div>
+      <div class="row">
+        <span>風速:</span>
+        <input id="windSpeed" type="number" step="0.1" placeholder="m" onchange="updateEnv()"/> m
+      </div>
+      <div class="row">
+        <span>波高:</span>
+        <input id="wave" type="number" placeholder="cm" onchange="updateEnv()"/> cm
+      </div>
+    </div>
+
+    <!-- 平均スタートタイミング表 -->
+    <div class="env-section">
+      <h2>平均スタートタイミング</h2>
+      <table>
+        <thead>
+          <tr><th>コース</th><th>選手番号</th><th>平均ST</th></tr>
+        </thead>
+        <tbody id="avgSTTable">
+          <!-- JSで生成 -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 直近スタートタイミング表 -->
+    <div class="env-section">
+      <h2>直近スタートタイミング</h2>
+      <table>
+        <thead>
+          <tr><th>コース</th><th>チルト</th><th>直近ST</th></tr>
+        </thead>
+        <tbody id="recentSTTable">
+          <!-- JSで生成 -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 展開図 -->
+    <div class="env-section">
+      <h2>スタート展開図</h2>
+      <canvas id="startCanvas"></canvas>
+    </div>
+
+    <div class="env-section">
+      <h2>1マーク旋回展開図</h2>
+      <canvas id="turnCanvas"></canvas>
+    </div>
+
+  </div>
+
+  <script>
+    // 環境データ
+    let env = { wind: "", speed: 0, wave: 0 };
+
+    function setWind(dir) {
+      env.wind = dir;
+      document.getElementById("windDir").innerText = dir;
+    }
+    function updateEnv() {
+      env.speed = parseFloat(document.getElementById("windSpeed").value) || 0;
+      env.wave = parseFloat(document.getElementById("wave").value) || 0;
+    }
+
+    // 選手とSTデータ
+    let avgST = [0.18, 0.11, 0.09, 0.12, 0.14, 0.09];
+    let recentST = [0.18, 0.11, 0.09, 0.12, 0.14, 0.09];
+    let tilt = [0,0,0,0,0,0];
+
+    function renderTables() {
+      const avgTable = document.getElementById("avgSTTable");
+      avgTable.innerHTML = "";
+      avgST.forEach((st, i) => {
+        avgTable.innerHTML += `
+          <tr>
+            <td>${i+1}</td>
+            <td><input type="text" placeholder="選手番号"></td>
+            <td>${st.toFixed(2)}</td>
+          </tr>`;
+      });
+
+      const recTable = document.getElementById("recentSTTable");
+      recTable.innerHTML = "";
+      recentST.forEach((st, i) => {
+        recTable.innerHTML += `
+          <tr>
+            <td>${i+1}</td>
+            <td><input type="number" step="0.5" placeholder="チルト" onchange="tilt[${i}]=this.value"></td>
+            <td>${st.toFixed(2)}</td>
+          </tr>`;
+      });
+    }
+
+    function drawStart() {
+      const cvs = document.getElementById("startCanvas");
+      const ctx = cvs.getContext("2d");
+      ctx.clearRect(0,0,cvs.width,cvs.height);
+
+      // スタートライン
+      ctx.beginPath();
+      ctx.moveTo(50,20);
+      ctx.lineTo(50,cvs.height-20);
+      ctx.strokeStyle = "black";
+      ctx.stroke();
+
+      // ボート描画
+      const colors = ["#ccc","#000","red","blue","gold","green"];
+      avgST.forEach((st,i)=>{
+        ctx.fillStyle = colors[i];
+        let x = 50 - st*200; // STが小さいほど右側
+        let y = 40 + i*30;
+        ctx.fillRect(x,y,40,20);
+        ctx.fillStyle = "white";
+        ctx.fillText(i+1, x+15, y+15);
+      });
+    }
+
+    function drawTurn() {
+      const cvs = document.getElementById("turnCanvas");
+      const ctx = cvs.getContext("2d");
+      ctx.clearRect(0,0,cvs.width,cvs.height);
+
+      const colors = ["#ccc","#000","red","blue","gold","green"];
+      recentST.forEach((st,i)=>{
+        ctx.fillStyle = colors[i];
+        let x = 50 + st*200;
+        let y = 40 + i*30 + (Math.random()*20-10);
+        ctx.fillRect(x,y,40,20);
+        ctx.fillStyle = "white";
+        ctx.fillText(i+1, x+15, y+15);
+      });
+    }
+
+    renderTables();
+    drawStart();
+    drawTurn();
+  </script>
+</body>
+</html>
