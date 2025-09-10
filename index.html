@@ -2,104 +2,86 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>競艇スタート＆展開図</title>
+  <title>スタートタイミング表示</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
-      background: #f0f8ff;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 10px;
+      background: #f0f0f0;
     }
     .container {
       display: flex;
-      justify-content: space-between;
-      gap: 20px;
-      margin-bottom: 40px;
+      justify-content: space-around;
+      margin-bottom: 30px;
     }
-    .table-box {
-      flex: 1;
+    table {
+      border-collapse: collapse;
       background: #fff;
-      border-radius: 12px;
-      padding: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      width: 45%;
+    }
+    th {
+      background: #007acc;
+      color: #fff;
+      padding: 8px;
       text-align: center;
     }
-    .water {
-      position: relative;
-      width: 100%;
-      height: 200px;
-      background: linear-gradient(to bottom, #4fc3f7, #0288d1);
-      border-radius: 12px;
-      overflow: hidden;
+    td {
+      border: 1px solid #ccc;
+      padding: 4px;
+      text-align: center;
     }
-    .boat {
-      position: absolute;
-      width: 50px;
-      height: 20px;
-      background: #fff;
-      clip-path: polygon(0% 0%, 90% 0%, 100% 50%, 90% 100%, 0% 100%, 10% 50%);
-      border: 2px solid #000;
-    }
-    .diagram {
-      position: relative;
-      width: 100%;
-      height: 300px;
-      background: linear-gradient(to bottom, #4fc3f7, #0288d1);
-      border-radius: 12px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    svg {
+      width: 80px;
+      height: 30px;
     }
     .turn-mark {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
       width: 0;
       height: 0;
       border-left: 20px solid transparent;
       border-right: 20px solid transparent;
-      border-top: 30px solid red;
+      border-bottom: 30px solid orange;
+      margin: 20px auto;
+    }
+    .race-diagram {
+      text-align: center;
     }
   </style>
 </head>
 <body>
+  <h1>スタートタイミング表示</h1>
 
-  <h2>競艇スタート展示シミュレーション</h2>
-
-  <!-- 左右の表 -->
   <div class="container">
-    <div class="table-box">
-      <h3>平均スタートタイミング表</h3>
-      <div class="water">
-        <div class="boat" style="top:20px; left:10px; background:#ff6666;"></div>
-        <div class="boat" style="top:50px; left:10px; background:#66b3ff;"></div>
-        <div class="boat" style="top:80px; left:10px; background:#ffff66;"></div>
-        <div class="boat" style="top:110px; left:10px; background:#66ff66;"></div>
-        <div class="boat" style="top:140px; left:10px; background:#ffb366;"></div>
-        <div class="boat" style="top:170px; left:10px; background:#cccccc;"></div>
-      </div>
-    </div>
+    <!-- 平均ST -->
+    <table>
+      <tr><th colspan="2">平均スタートタイミング表</th></tr>
+      <tr><th>枠番</th><th>ボート</th></tr>
+      <tr><td>1</td><td><svg><polygon points="0,15 20,0 20,30" fill="white"/><rect x="20" y="5" width="60" height="20" fill="white" stroke="black"/></svg></td></tr>
+      <tr><td>2</td><td><svg><polygon points="0,15 20,0 20,30" fill="black"/><rect x="20" y="5" width="60" height="20" fill="black" stroke="black"/></svg></td></tr>
+      <tr><td>3</td><td><svg><polygon points="0,15 20,0 20,30" fill="red"/><rect x="20" y="5" width="60" height="20" fill="red" stroke="black"/></svg></td></tr>
+      <tr><td>4</td><td><svg><polygon points="0,15 20,0 20,30" fill="blue"/><rect x="20" y="5" width="60" height="20" fill="blue" stroke="black"/></svg></td></tr>
+      <tr><td>5</td><td><svg><polygon points="0,15 20,0 20,30" fill="yellow"/><rect x="20" y="5" width="60" height="20" fill="yellow" stroke="black"/></svg></td></tr>
+      <tr><td>6</td><td><svg><polygon points="0,15 20,0 20,30" fill="green"/><rect x="20" y="5" width="60" height="20" fill="green" stroke="black"/></svg></td></tr>
+    </table>
 
-    <div class="table-box">
-      <h3>直近スタートタイミング表</h3>
-      <div class="water">
-        <div class="boat" style="top:20px; left:30px; background:#ff6666;"></div>
-        <div class="boat" style="top:50px; left:30px; background:#66b3ff;"></div>
-        <div class="boat" style="top:80px; left:30px; background:#ffff66;"></div>
-        <div class="boat" style="top:110px; left:30px; background:#66ff66;"></div>
-        <div class="boat" style="top:140px; left:30px; background:#ffb366;"></div>
-        <div class="boat" style="top:170px; left:30px; background:#cccccc;"></div>
-      </div>
-    </div>
+    <!-- 直近ST -->
+    <table>
+      <tr><th colspan="2">直近スタートタイミング表</th></tr>
+      <tr><th>枠番</th><th>ボート</th></tr>
+      <tr><td>1</td><td><svg><polygon points="0,15 20,0 20,30" fill="white"/><rect x="20" y="5" width="60" height="20" fill="white" stroke="black"/></svg></td></tr>
+      <tr><td>2</td><td><svg><polygon points="0,15 20,0 20,30" fill="black"/><rect x="20" y="5" width="60" height="20" fill="black" stroke="black"/></svg></td></tr>
+      <tr><td>3</td><td><svg><polygon points="0,15 20,0 20,30" fill="red"/><rect x="20" y="5" width="60" height="20" fill="red" stroke="black"/></svg></td></tr>
+      <tr><td>4</td><td><svg><polygon points="0,15 20,0 20,30" fill="blue"/><rect x="20" y="5" width="60" height="20" fill="blue" stroke="black"/></svg></td></tr>
+      <tr><td>5</td><td><svg><polygon points="0,15 20,0 20,30" fill="yellow"/><rect x="20" y="5" width="60" height="20" fill="yellow" stroke="black"/></svg></td></tr>
+      <tr><td>6</td><td><svg><polygon points="0,15 20,0 20,30" fill="green"/><rect x="20" y="5" width="60" height="20" fill="green" stroke="black"/></svg></td></tr>
+    </table>
   </div>
 
-  <!-- 1マーク旋回展開図 -->
-  <div class="diagram">
-    <h3 style="text-align:center; padding-top:10px; color:white;">1マーク旋回展開図</h3>
+  <!-- 1マーク展開図 -->
+  <div class="race-diagram">
+    <h2>1マーク旋回展開図</h2>
     <div class="turn-mark"></div>
+    <p>ターンマークを配置しました</p>
   </div>
-
 </body>
 </html>
