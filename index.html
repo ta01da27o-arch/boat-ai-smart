@@ -12,7 +12,7 @@ html, body {
   width: 100%;
   overflow: hidden;
   font-family: sans-serif;
-  background-color: #00bfff; /* 背景色をディープスカイブルーに */
+  background-color: #ffffff; /* 枠外白 */
 }
 .table-container {
   display: flex;
@@ -23,7 +23,7 @@ html, body {
   gap: 10px;
 }
 .panel {
-  background-color: #00bfff; /* 枠内背景色 */
+  background-color: #00bfff; /* 枠内ディープスカイブルー */
   padding: 5px;
   border: 2px solid #00796b;
   border-radius: 10px;
@@ -61,6 +61,9 @@ html, body {
   border-radius: 50%;
   cursor: grab;
   transition: transform 0.1s;
+  /* ○の右端が黒線に接する初期位置 */
+  position: absolute;
+  left: calc(50% - 24px); 
 }
 .inputs-column {
   display: flex;
