@@ -14,18 +14,11 @@
     font-family: sans-serif;
     background-color: #e0f7fa;
   }
-  .title {
-    text-align: center;
-    font-size: 2rem;
-    font-weight: bold;
-    padding: 10px 0;
-    background-color: #b2ebf2;
-  }
   .table-container {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: calc(100% - 60px);
+    height: 100%;
     padding: 10px;
     gap: 10px;
   }
@@ -37,8 +30,7 @@
     display: flex;
     position: relative;
     flex: 1;
-    /* 上下段を10mmずつ小さく */
-    max-height: calc(50% - 14px); /* 10mm相当減少 */
+    max-height: calc(50% - 14px); /* 上下段を縦方向10mmずつ小さく */
   }
   .line {
     position: absolute;
@@ -87,8 +79,6 @@
 </style>
 </head>
 <body>
-
-<div class="title">ST</div>
 
 <div class="table-container">
 
