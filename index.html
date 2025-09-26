@@ -12,7 +12,7 @@ html, body {
   width: 100%;
   overflow: hidden;
   font-family: sans-serif;
-  background-color: #e0f7fa;
+  background-color: #00bfff; /* ディープスカイブルーに変更 */
 }
 .table-container {
   display: flex;
@@ -28,9 +28,10 @@ html, body {
   border: 2px solid #00796b;
   border-radius: 10px;
   display: flex;
-  position: relative;
-  flex: 1;
+  flex-direction: column;
+  justify-content: space-around;
   max-height: calc(50% - 14px);
+  position: relative;
 }
 .line {
   position: absolute;
@@ -40,48 +41,28 @@ html, body {
   width: 2px;
   background-color: black;
 }
-.row-container {
+.circle-row {
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex: 1;
   justify-content: flex-start;
   gap: 5px;
-}
-.number-labels {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  height: 100%;
-  width: 20px;
-}
-.circles-column {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  flex: 1;
+  height: calc(100% / 6 - 2px);
   position: relative;
+}
+.number-label {
+  width: 20px;
+  text-align: center;
 }
 .circle {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  position: absolute;
-  left: 50%; /* 黒線上 = 0.00 */
-  transform: translateX(0);
-  touch-action: none;
   cursor: grab;
   transition: transform 0.1s;
 }
-.inputs-column {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  height: 100%;
-  width: 60px;
-}
 .inputs-column input {
-  width: 100%;
+  width: 60px;
   padding: 5px;
   text-align: center;
   font-size: 0.9rem;
@@ -95,106 +76,76 @@ html, body {
   <!-- 上段（平均） -->
   <div class="panel" id="average-panel">
     <div class="line"></div>
-    <div class="row-container">
-      <div class="number-labels">
-        <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
-      </div>
-      <div class="circles-column" id="average-circles">
-        <span class="circle" style="background:white;" data-index="0"></span>
-        <span class="circle" style="background:black;" data-index="1"></span>
-        <span class="circle" style="background:red;" data-index="2"></span>
-        <span class="circle" style="background:blue;" data-index="3"></span>
-        <span class="circle" style="background:yellow;" data-index="4"></span>
-        <span class="circle" style="background:green;" data-index="5"></span>
-      </div>
-      <div class="inputs-column" id="average-inputs">
-        <input type="text" id="avg1" placeholder="0.00">
-        <input type="text" id="avg2" placeholder="0.00">
-        <input type="text" id="avg3" placeholder="0.00">
-        <input type="text" id="avg4" placeholder="0.00">
-        <input type="text" id="avg5" placeholder="0.00">
-        <input type="text" id="avg6" placeholder="0.00">
-      </div>
-    </div>
+    <div class="circle-row"><div class="number-label">1</div><div class="circle" style="background:white;" data-index="0"></div><input type="text" id="avg1" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">2</div><div class="circle" style="background:black;" data-index="1"></div><input type="text" id="avg2" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">3</div><div class="circle" style="background:red;" data-index="2"></div><input type="text" id="avg3" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">4</div><div class="circle" style="background:blue;" data-index="3"></div><input type="text" id="avg4" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">5</div><div class="circle" style="background:yellow;" data-index="4"></div><input type="text" id="avg5" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">6</div><div class="circle" style="background:green;" data-index="5"></div><input type="text" id="avg6" placeholder="0.00"></div>
   </div>
 
   <!-- 下段（展示） -->
   <div class="panel" id="display-panel">
     <div class="line"></div>
-    <div class="row-container">
-      <div class="number-labels">
-        <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
-      </div>
-      <div class="circles-column" id="display-circles">
-        <span class="circle" style="background:white;" data-index="0"></span>
-        <span class="circle" style="background:black;" data-index="1"></span>
-        <span class="circle" style="background:red;" data-index="2"></span>
-        <span class="circle" style="background:blue;" data-index="3"></span>
-        <span class="circle" style="background:yellow;" data-index="4"></span>
-        <span class="circle" style="background:green;" data-index="5"></span>
-      </div>
-      <div class="inputs-column" id="display-inputs">
-        <input type="text" id="disp1" placeholder="0.00">
-        <input type="text" id="disp2" placeholder="0.00">
-        <input type="text" id="disp3" placeholder="0.00">
-        <input type="text" id="disp4" placeholder="0.00">
-        <input type="text" id="disp5" placeholder="0.00">
-        <input type="text" id="disp6" placeholder="0.00">
-      </div>
-    </div>
+    <div class="circle-row"><div class="number-label">1</div><div class="circle" style="background:white;" data-index="0"></div><input type="text" id="disp1" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">2</div><div class="circle" style="background:black;" data-index="1"></div><input type="text" id="disp2" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">3</div><div class="circle" style="background:red;" data-index="2"></div><input type="text" id="disp3" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">4</div><div class="circle" style="background:blue;" data-index="3"></div><input type="text" id="disp4" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">5</div><div class="circle" style="background:yellow;" data-index="4"></div><input type="text" id="disp5" placeholder="0.00"></div>
+    <div class="circle-row"><div class="number-label">6</div><div class="circle" style="background:green;" data-index="5"></div><input type="text" id="disp6" placeholder="0.00"></div>
   </div>
 
 </div>
 
 <script>
-function setupPanel(panelId, inputIds) {
-  const panel = document.getElementById(panelId);
-  const inputs = inputIds.map(id => document.getElementById(id));
-  const circles = panel.querySelectorAll('.circle');
+function setupPanel(panelId, inputIds){
+  const panel=document.getElementById(panelId);
+  const inputs=inputIds.map(id=>document.getElementById(id));
+  const circles=panel.querySelectorAll('.circle');
 
-  inputs.forEach((input, idx) => {
-    input.addEventListener('input', () => {
-      let val = parseFloat(input.value) || 0;
-      circles[idx].style.transform = `translateX(${val * 50}px)`;
+  inputs.forEach((input,idx)=>{
+    input.addEventListener('input',()=>{
+      let val=parseFloat(input.value)||0;
+      circles[idx].style.transform=`translateX(${val*50}px)`;
     });
   });
 
-  circles.forEach((circle, idx) => {
-    let dragging = false;
-    let startX = 0;
-    let startTranslate = 0;
+  circles.forEach((circle,idx)=>{
+    let dragging=false;
+    let startX=0;
+    let startTranslate=0;
 
-    const updateValue = (x) => {
-      let delta = x - startX;
-      let newTranslate = startTranslate + delta;
-      if(newTranslate > 150) newTranslate = 150;
-      if(newTranslate < -150) newTranslate = -150;
-      circle.style.transform = `translateX(${newTranslate}px)`;
-      let value = (newTranslate / 50).toFixed(2);
-      inputs[idx].value = value;
+    const updateValue=(x)=>{
+      let delta=x-startX;
+      let newTranslate=startTranslate+delta;
+      if(newTranslate>150)newTranslate=150;
+      if(newTranslate<-150)newTranslate=-150;
+      circle.style.transform=`translateX(${newTranslate}px)`;
+      let value=(newTranslate/50).toFixed(2);
+      inputs[idx].value=value;
     };
 
-    circle.addEventListener('mousedown', e => {
-      dragging = true;
-      startX = e.clientX;
-      startTranslate = parseFloat(circle.style.transform.replace('translateX(','').replace('px)','')) || 0;
-      circle.style.cursor = 'grabbing';
+    circle.addEventListener('mousedown',e=>{
+      dragging=true;
+      startX=e.clientX;
+      startTranslate=parseFloat(circle.style.transform.replace('translateX(','').replace('px)',''))||0;
+      circle.style.cursor='grabbing';
     });
-    document.addEventListener('mousemove', e => { if(dragging) updateValue(e.clientX); });
-    document.addEventListener('mouseup', e => dragging = false);
+    document.addEventListener('mousemove',e=>{if(dragging)updateValue(e.clientX);});
+    document.addEventListener('mouseup',e=>dragging=false);
 
-    circle.addEventListener('touchstart', e => {
-      dragging = true;
-      startX = e.touches[0].clientX;
-      startTranslate = parseFloat(circle.style.transform.replace('translateX(','').replace('px)','')) || 0;
+    circle.addEventListener('touchstart',e=>{
+      dragging=true;
+      startX=e.touches[0].clientX;
+      startTranslate=parseFloat(circle.style.transform.replace('translateX(','').replace('px)',''))||0;
     });
-    document.addEventListener('touchmove', e => { if(dragging){ e.preventDefault(); updateValue(e.touches[0].clientX); } }, {passive:false});
-    document.addEventListener('touchend', e => dragging = false);
+    document.addEventListener('touchmove',e=>{if(dragging){e.preventDefault();updateValue(e.touches[0].clientX);}}, {passive:false});
+    document.addEventListener('touchend',e=>dragging=false);
   });
 }
 
-setupPanel('average-panel', ['avg1','avg2','avg3','avg4','avg5','avg6']);
-setupPanel('display-panel', ['disp1','disp2','disp3','disp4','disp5','disp6']);
+setupPanel('average-panel',['avg1','avg2','avg3','avg4','avg5','avg6']);
+setupPanel('display-panel',['disp1','disp2','disp3','disp4','disp5','disp6']);
 </script>
 
 </body>
