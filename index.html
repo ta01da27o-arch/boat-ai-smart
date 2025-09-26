@@ -61,9 +61,9 @@ html, body {
   border-radius: 50%;
   cursor: grab;
   transition: transform 0.1s;
-  /* ○の右端が黒線に接する初期位置 */
   position: absolute;
-  left: calc(50% - 24px); 
+  /* 右端が黒線に接する初期位置 */
+  left: calc(50% - 24px);
 }
 .inputs-column {
   display: flex;
@@ -91,12 +91,12 @@ html, body {
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
     <div class="circles-column" id="average-circles">
-      <span class="circle" style="background:white;" data-index="0"></span>
-      <span class="circle" style="background:black;" data-index="1"></span>
-      <span class="circle" style="background:red;" data-index="2"></span>
-      <span class="circle" style="background:blue;" data-index="3"></span>
-      <span class="circle" style="background:yellow;" data-index="4"></span>
-      <span class="circle" style="background:green;" data-index="5"></span>
+      <span class="circle" style="background:white; top:0%;" data-index="0"></span>
+      <span class="circle" style="background:black; top:16.66%;" data-index="1"></span>
+      <span class="circle" style="background:red; top:33.33%;" data-index="2"></span>
+      <span class="circle" style="background:blue; top:50%;" data-index="3"></span>
+      <span class="circle" style="background:yellow; top:66.66%;" data-index="4"></span>
+      <span class="circle" style="background:green; top:83.33%;" data-index="5"></span>
     </div>
     <div class="inputs-column" id="average-inputs">
       <input type="text" id="avg1" placeholder="0.00">
@@ -115,12 +115,12 @@ html, body {
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
     <div class="circles-column" id="display-circles">
-      <span class="circle" style="background:white;" data-index="0"></span>
-      <span class="circle" style="background:black;" data-index="1"></span>
-      <span class="circle" style="background:red;" data-index="2"></span>
-      <span class="circle" style="background:blue;" data-index="3"></span>
-      <span class="circle" style="background:yellow;" data-index="4"></span>
-      <span class="circle" style="background:green;" data-index="5"></span>
+      <span class="circle" style="background:white; top:0%;" data-index="0"></span>
+      <span class="circle" style="background:black; top:16.66%;" data-index="1"></span>
+      <span class="circle" style="background:red; top:33.33%;" data-index="2"></span>
+      <span class="circle" style="background:blue; top:50%;" data-index="3"></span>
+      <span class="circle" style="background:yellow; top:66.66%;" data-index="4"></span>
+      <span class="circle" style="background:green; top:83.33%;" data-index="5"></span>
     </div>
     <div class="inputs-column" id="display-inputs">
       <input type="text" id="disp1" placeholder="0.00">
