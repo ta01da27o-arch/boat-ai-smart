@@ -35,7 +35,7 @@ html, body {
 }
 .line {
   position: absolute;
-  left: 50%;
+  left: 400px; /* 黒線の固定位置 */
   top: 0;
   bottom: 0;
   width: 2px;
@@ -51,7 +51,6 @@ html, body {
 .circles-column {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   flex: 1;
   position: relative;
 }
@@ -62,8 +61,7 @@ html, body {
   cursor: grab;
   transition: transform 0.1s;
   position: absolute;
-  /* ○右端が黒線に接する初期位置 */
-  left: calc(50% - 24px);
+  left: 376px; /* ○の右端が黒線に接する初期位置 */
 }
 .inputs-column {
   display: flex;
@@ -99,12 +97,12 @@ html, body {
       <span class="circle" style="background:green;" data-index="5"></span>
     </div>
     <div class="inputs-column" id="average-inputs">
-      <input type="text" id="avg1" placeholder="0.00">
-      <input type="text" id="avg2" placeholder="0.00">
-      <input type="text" id="avg3" placeholder="0.00">
-      <input type="text" id="avg4" placeholder="0.00">
-      <input type="text" id="avg5" placeholder="0.00">
-      <input type="text" id="avg6" placeholder="0.00">
+      <input type="text" id="avg1" placeholder="-2.00">
+      <input type="text" id="avg2" placeholder="-2.00">
+      <input type="text" id="avg3" placeholder="-2.00">
+      <input type="text" id="avg4" placeholder="-2.00">
+      <input type="text" id="avg5" placeholder="-2.00">
+      <input type="text" id="avg6" placeholder="-2.00">
     </div>
   </div>
 
@@ -123,12 +121,12 @@ html, body {
       <span class="circle" style="background:green;" data-index="5"></span>
     </div>
     <div class="inputs-column" id="display-inputs">
-      <input type="text" id="disp1" placeholder="0.00">
-      <input type="text" id="disp2" placeholder="0.00">
-      <input type="text" id="disp3" placeholder="0.00">
-      <input type="text" id="disp4" placeholder="0.00">
-      <input type="text" id="disp5" placeholder="0.00">
-      <input type="text" id="disp6" placeholder="0.00">
+      <input type="text" id="disp1" placeholder="-2.00">
+      <input type="text" id="disp2" placeholder="-2.00">
+      <input type="text" id="disp3" placeholder="-2.00">
+      <input type="text" id="disp4" placeholder="-2.00">
+      <input type="text" id="disp5" placeholder="-2.00">
+      <input type="text" id="disp6" placeholder="-2.00">
     </div>
   </div>
 
@@ -142,27 +140,34 @@ function setupPanel(panelId, inputIds) {
 
   const minValue = -2.0;
   const maxValue = 1.0;
-  const pixelPerUnit = 50; // 1単位あたりのピクセル
-  const zeroOffset = 0; // 0.00 にしたい位置 (○右端が黒線接触)
+  const pixelPerUnit = 50; // 1単位 = 50px
+  const zeroPosition = 400; // 黒線位置
+  const circleWidth = 24; // ○の幅
 
-  // 初期配置：右端が0.00
+  // 初期配置: 右端が黒線に接する = 0.00、縦位置を数字中央に合わせる
   circles.forEach((circle, idx) => {
-    circle.style.transform = `translateX(${minValue * pixelPerUnit + 2*pixelPerUnit}px)`;
+    const numberLabel = panel.querySelectorAll('.number-labels div')[idx];
+    const labelTop = numberLabel.offsetTop;
+    const labelHeight = numberLabel.offsetHeight;
+    const circleTop = labelTop + (labelHeight - circle.offsetHeight)/2;
+    circle.style.top = circleTop + 'px';
+    circle.style.left = (zeroPosition - circleWidth) + 'px';
   });
 
+  // 入力欄連動
   inputs.forEach((input, idx) => {
     input.addEventListener('input', () => {
       let val = parseFloat(input.value);
       if (isNaN(val)) val = minValue;
       if (val < minValue) val = minValue;
       if (val > maxValue) val = maxValue;
-      // ○右端が黒線に接するように調整
-      const offset = (val - minValue) * pixelPerUnit;
-      circles[idx].style.transform = `translateX(${offset}px)`;
+      let translate = val * pixelPerUnit;
+      circles[idx].style.transform = `translateX(${translate}px)`;
       input.value = val.toFixed(2);
     });
   });
 
+  // ドラッグ操作
   circles.forEach((circle, idx) => {
     let dragging = false;
     let startX = 0;
@@ -171,12 +176,12 @@ function setupPanel(panelId, inputIds) {
     const updateValue = (x) => {
       let delta = x - startX;
       let newTranslate = startTranslate + delta;
-      const minTranslate = 0;
-      const maxTranslate = (maxValue - minValue) * pixelPerUnit;
+      const minTranslate = minValue * pixelPerUnit;
+      const maxTranslate = maxValue * pixelPerUnit;
       if(newTranslate < minTranslate) newTranslate = minTranslate;
       if(newTranslate > maxTranslate) newTranslate = maxTranslate;
       circle.style.transform = `translateX(${newTranslate}px)`;
-      let value = minValue + (newTranslate / pixelPerUnit);
+      let value = newTranslate / pixelPerUnit;
       inputs[idx].value = value.toFixed(2);
     };
 
@@ -185,7 +190,7 @@ function setupPanel(panelId, inputIds) {
       startX = e.clientX;
       const style = window.getComputedStyle(circle);
       const matrix = style.transform.match(/matrix.*\((.+)\)/);
-      startTranslate = matrix ? parseFloat(matrix[1].split(', ')[4]) : 0;
+      startTranslate = matrix ? parseFloat(matrix[1].split(',')[4]) : 0;
       circle.style.cursor = 'grabbing';
     });
     document.addEventListener('mousemove', e => { if(dragging) updateValue(e.clientX); });
@@ -196,11 +201,17 @@ function setupPanel(panelId, inputIds) {
       startX = e.touches[0].clientX;
       const style = window.getComputedStyle(circle);
       const matrix = style.transform.match(/matrix.*\((.+)\)/);
-      startTranslate = matrix ? parseFloat(matrix[1].split(', ')[4]) : 0;
+      startTranslate = matrix ? parseFloat(matrix[1].split(',')[4]) : 0;
     });
-    document.addEventListener('touchmove', e => { if(dragging){ e.preventDefault(); updateValue(e.touches[0].clientX); } }, {passive:false});
+    document.addEventListener('touchmove', e => { 
+      if(dragging){ 
+        e.preventDefault(); 
+        updateValue(e.touches[0].clientX); 
+      } 
+    }, {passive:false});
     document.addEventListener('touchend', e => dragging = false);
   });
+
 }
 
 setupPanel('average-panel', ['avg1','avg2','avg3','avg4','avg5','avg6']);
