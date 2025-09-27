@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター 完全表示版</title>
+<title>STシミュレーター 縦並び固定版</title>
 <style>
 html, body {
   margin: 0;
@@ -34,7 +34,7 @@ html, body {
 }
 .line {
   position: absolute;
-  left: 50%; /* 画面中央に黒線 */
+  left: 50%; /* スタートライン = 0.00 */
   top: 0;
   bottom: 0;
   width: 2px;
@@ -54,7 +54,6 @@ html, body {
   align-items: flex-start;
   flex: 1;
   position: relative;
-  padding-left: 0; /* 左端基準 */
 }
 .circle {
   width: 24px;
@@ -62,8 +61,8 @@ html, body {
   border-radius: 50%;
   cursor: grab;
   border: 1px solid #000;
-  transition: transform 0.1s;
   position: absolute; /* 横移動用 */
+  transition: transform 0.1s;
 }
 .inputs-column {
   display: flex;
@@ -140,14 +139,19 @@ function setupPanel(panelId, inputIds) {
   const inputs = inputIds.map(id => document.getElementById(id));
   const circles = panel.querySelectorAll('.circle');
 
-  const minValue = -2.0; // 左端
-  const maxValue = 1.0;  // 右端
-  const zeroPosition = panel.clientWidth / 2; // 黒線 = 0.00
-  const unitPixels = 50; // 1単位あたりのピクセル
+  const minValue = -2.0;
+  const maxValue = 1.0;
+  const zeroPos = panel.clientWidth / 2; // スタートラインのピクセル位置
+  const leftPixels = zeroPos * (2/3); // 左側幅ピクセル換算（比率調整）
+  const rightPixels = panel.clientWidth - zeroPos; // 右側幅ピクセル
+  const unitPixelsLeft = leftPixels / 2; // -2.00 -> 0.00
+  const unitPixelsRight = rightPixels / 1; // 0.00 -> +1.00
 
   // 初期位置: 左端 (-2.00)
-  circles.forEach(circle => {
-    circle.style.left = `${zeroPosition + minValue * unitPixels - circle.offsetWidth}px`;
+  circles.forEach((circle, idx) => {
+    const vertPos = idx * (panel.clientHeight / 6) + (panel.clientHeight/12 - circle.offsetHeight/2);
+    circle.style.top = `${vertPos}px`;
+    circle.style.left = `${zeroPos - 2*unitPixelsLeft - circle.offsetWidth}px`;
     circle.dataset.value = minValue;
   });
 
@@ -158,7 +162,9 @@ function setupPanel(panelId, inputIds) {
       if(isNaN(val)) val = minValue;
       if(val < minValue) val = minValue;
       if(val > maxValue) val = maxValue;
-      circles[idx].style.left = `${zeroPosition + val * unitPixels - circles[idx].offsetWidth}px`;
+
+      let px = val < 0 ? zeroPos + val * unitPixelsLeft : zeroPos + val * unitPixelsRight;
+      circles[idx].style.left = `${px - circles[idx].offsetWidth}px`;
       circles[idx].dataset.value = val;
       input.value = val.toFixed(2);
     });
@@ -172,10 +178,12 @@ function setupPanel(panelId, inputIds) {
 
     const moveCircle = (x) => {
       let delta = x - startX;
-      let newValue = startValue + delta / unitPixels;
+      let newValue = startValue + (delta / (startValue<0 ? unitPixelsLeft : unitPixelsRight));
       if(newValue < minValue) newValue = minValue;
       if(newValue > maxValue) newValue = maxValue;
-      circle.style.left = `${zeroPosition + newValue * unitPixels - circle.offsetWidth}px`;
+
+      let px = newValue < 0 ? zeroPos + newValue * unitPixelsLeft : zeroPos + newValue * unitPixelsRight;
+      circle.style.left = `${px - circle.offsetWidth}px`;
       circle.dataset.value = newValue;
       inputs[idx].value = newValue.toFixed(2);
     };
