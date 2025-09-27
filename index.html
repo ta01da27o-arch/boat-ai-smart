@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター</title>
+<title>STシミュレーター 完全表示版</title>
 <style>
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   width: 100%;
-  overflow: hidden;
   font-family: sans-serif;
   background-color: #ffffff; /* 枠外白 */
+  overflow: hidden;
 }
 .table-container {
   display: flex;
@@ -24,7 +24,6 @@ html, body {
 }
 .panel {
   background-color: #00bfff; /* 枠内ディープスカイブルー */
-  padding: 5px;
   border: 2px solid #00796b;
   border-radius: 10px;
   display: flex;
@@ -35,7 +34,7 @@ html, body {
 }
 .line {
   position: absolute;
-  left: 400px; /* 黒線の固定位置 */
+  left: 50%; /* 画面中央に黒線 */
   top: 0;
   bottom: 0;
   width: 2px;
@@ -51,18 +50,20 @@ html, body {
 .circles-column {
   display: flex;
   flex-direction: column;
+  justify-content: space-around; /* 縦並び固定 */
+  align-items: flex-start;
   flex: 1;
   position: relative;
+  padding-left: 0; /* 左端基準 */
 }
 .circle {
   width: 24px;
   height: 24px;
   border-radius: 50%;
   cursor: grab;
-  position: absolute;
-  background-color: white;
   border: 1px solid #000;
   transition: transform 0.1s;
+  position: absolute; /* 横移動用 */
 }
 .inputs-column {
   display: flex;
@@ -134,40 +135,31 @@ html, body {
 </div>
 
 <script>
-window.onload = function() {
-
 function setupPanel(panelId, inputIds) {
   const panel = document.getElementById(panelId);
   const inputs = inputIds.map(id => document.getElementById(id));
   const circles = panel.querySelectorAll('.circle');
 
-  const minValue = -2.0;
-  const maxValue = 1.0;
-  const pixelPerUnit = 50; // 1単位 = 50px
-  const zeroPosition = 400; // 黒線位置
-  const circleWidth = 24; // ○の幅
+  const minValue = -2.0; // 左端
+  const maxValue = 1.0;  // 右端
+  const zeroPosition = panel.clientWidth / 2; // 黒線 = 0.00
+  const unitPixels = 50; // 1単位あたりのピクセル
 
-  // 縦位置と初期横位置設定
-  circles.forEach((circle, idx) => {
-    const numberLabel = panel.querySelectorAll('.number-labels div')[idx];
-    const labelTop = numberLabel.offsetTop;
-    const labelHeight = numberLabel.offsetHeight;
-    const circleTop = labelTop + (labelHeight - circle.offsetHeight)/2;
-    circle.style.top = circleTop + 'px';
-    circle.style.left = (zeroPosition - circleWidth) + 'px';
-    circle.dataset.translate = 0; // 初期値0
+  // 初期位置: 左端 (-2.00)
+  circles.forEach(circle => {
+    circle.style.left = `${zeroPosition + minValue * unitPixels - circle.offsetWidth}px`;
+    circle.dataset.value = minValue;
   });
 
-  // 入力欄連動
+  // 入力連動
   inputs.forEach((input, idx) => {
     input.addEventListener('input', () => {
       let val = parseFloat(input.value);
-      if (isNaN(val)) val = minValue;
-      if (val < minValue) val = minValue;
-      if (val > maxValue) val = maxValue;
-      let translate = val * pixelPerUnit;
-      circles[idx].style.transform = `translateX(${translate}px)`;
-      circles[idx].dataset.translate = translate;
+      if(isNaN(val)) val = minValue;
+      if(val < minValue) val = minValue;
+      if(val > maxValue) val = maxValue;
+      circles[idx].style.left = `${zeroPosition + val * unitPixels - circles[idx].offsetWidth}px`;
+      circles[idx].dataset.value = val;
       input.value = val.toFixed(2);
     });
   });
@@ -176,39 +168,36 @@ function setupPanel(panelId, inputIds) {
   circles.forEach((circle, idx) => {
     let dragging = false;
     let startX = 0;
-    let startTranslate = 0;
+    let startValue = 0;
 
-    const updateValue = (x) => {
+    const moveCircle = (x) => {
       let delta = x - startX;
-      let newTranslate = startTranslate + delta;
-      const minTranslate = minValue * pixelPerUnit;
-      const maxTranslate = maxValue * pixelPerUnit;
-      if(newTranslate < minTranslate) newTranslate = minTranslate;
-      if(newTranslate > maxTranslate) newTranslate = maxTranslate;
-      circle.style.transform = `translateX(${newTranslate}px)`;
-      circle.dataset.translate = newTranslate;
-      let value = newTranslate / pixelPerUnit;
-      inputs[idx].value = value.toFixed(2);
+      let newValue = startValue + delta / unitPixels;
+      if(newValue < minValue) newValue = minValue;
+      if(newValue > maxValue) newValue = maxValue;
+      circle.style.left = `${zeroPosition + newValue * unitPixels - circle.offsetWidth}px`;
+      circle.dataset.value = newValue;
+      inputs[idx].value = newValue.toFixed(2);
     };
 
     circle.addEventListener('mousedown', e => {
       dragging = true;
       startX = e.clientX;
-      startTranslate = parseFloat(circle.dataset.translate) || 0;
+      startValue = parseFloat(circle.dataset.value);
       circle.style.cursor = 'grabbing';
     });
-    document.addEventListener('mousemove', e => { if(dragging) updateValue(e.clientX); });
+    document.addEventListener('mousemove', e => { if(dragging) moveCircle(e.clientX); });
     document.addEventListener('mouseup', e => dragging = false);
 
     circle.addEventListener('touchstart', e => {
       dragging = true;
       startX = e.touches[0].clientX;
-      startTranslate = parseFloat(circle.dataset.translate) || 0;
+      startValue = parseFloat(circle.dataset.value);
     });
     document.addEventListener('touchmove', e => { 
       if(dragging){ 
         e.preventDefault(); 
-        updateValue(e.touches[0].clientX); 
+        moveCircle(e.touches[0].clientX); 
       } 
     }, {passive:false});
     document.addEventListener('touchend', e => dragging = false);
@@ -217,8 +206,6 @@ function setupPanel(panelId, inputIds) {
 
 setupPanel('average-panel', ['avg1','avg2','avg3','avg4','avg5','avg6']);
 setupPanel('display-panel', ['disp1','disp2','disp3','disp4','disp5','disp6']);
-
-};
 </script>
 
 </body>
