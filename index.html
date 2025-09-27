@@ -62,7 +62,7 @@ html, body {
   cursor: grab;
   transition: transform 0.1s;
   position: absolute;
-  /* 黒線に右端を接触させる初期位置 */
+  /* ○右端が黒線に接する初期位置 */
   left: calc(50% - 24px);
 }
 .inputs-column {
@@ -91,12 +91,12 @@ html, body {
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
     <div class="circles-column" id="average-circles">
-      <span class="circle" style="background:white; top:calc(0% + 8px);" data-index="0"></span>
-      <span class="circle" style="background:black; top:calc(16.66% + 8px);" data-index="1"></span>
-      <span class="circle" style="background:red; top:calc(33.33% + 8px);" data-index="2"></span>
-      <span class="circle" style="background:blue; top:calc(50% + 8px);" data-index="3"></span>
-      <span class="circle" style="background:yellow; top:calc(66.66% + 8px);" data-index="4"></span>
-      <span class="circle" style="background:green; top:calc(83.33% + 8px);" data-index="5"></span>
+      <span class="circle" style="background:white;" data-index="0"></span>
+      <span class="circle" style="background:black;" data-index="1"></span>
+      <span class="circle" style="background:red;" data-index="2"></span>
+      <span class="circle" style="background:blue;" data-index="3"></span>
+      <span class="circle" style="background:yellow;" data-index="4"></span>
+      <span class="circle" style="background:green;" data-index="5"></span>
     </div>
     <div class="inputs-column" id="average-inputs">
       <input type="text" id="avg1" placeholder="0.00">
@@ -115,12 +115,12 @@ html, body {
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
     <div class="circles-column" id="display-circles">
-      <span class="circle" style="background:white; top:calc(0% + 8px);" data-index="0"></span>
-      <span class="circle" style="background:black; top:calc(16.66% + 8px);" data-index="1"></span>
-      <span class="circle" style="background:red; top:calc(33.33% + 8px);" data-index="2"></span>
-      <span class="circle" style="background:blue; top:calc(50% + 8px);" data-index="3"></span>
-      <span class="circle" style="background:yellow; top:calc(66.66% + 8px);" data-index="4"></span>
-      <span class="circle" style="background:green; top:calc(83.33% + 8px);" data-index="5"></span>
+      <span class="circle" style="background:white;" data-index="0"></span>
+      <span class="circle" style="background:black;" data-index="1"></span>
+      <span class="circle" style="background:red;" data-index="2"></span>
+      <span class="circle" style="background:blue;" data-index="3"></span>
+      <span class="circle" style="background:yellow;" data-index="4"></span>
+      <span class="circle" style="background:green;" data-index="5"></span>
     </div>
     <div class="inputs-column" id="display-inputs">
       <input type="text" id="disp1" placeholder="0.00">
@@ -140,10 +140,26 @@ function setupPanel(panelId, inputIds) {
   const inputs = inputIds.map(id => document.getElementById(id));
   const circles = panel.querySelectorAll('.circle');
 
+  const minValue = -2.0;
+  const maxValue = 1.0;
+  const pixelPerUnit = 50; // 1単位あたりのピクセル
+  const zeroOffset = 0; // 0.00 にしたい位置 (○右端が黒線接触)
+
+  // 初期配置：右端が0.00
+  circles.forEach((circle, idx) => {
+    circle.style.transform = `translateX(${minValue * pixelPerUnit + 2*pixelPerUnit}px)`;
+  });
+
   inputs.forEach((input, idx) => {
     input.addEventListener('input', () => {
-      let val = parseFloat(input.value) || 0;
-      circles[idx].style.transform = `translateX(${val * 50}px)`;
+      let val = parseFloat(input.value);
+      if (isNaN(val)) val = minValue;
+      if (val < minValue) val = minValue;
+      if (val > maxValue) val = maxValue;
+      // ○右端が黒線に接するように調整
+      const offset = (val - minValue) * pixelPerUnit;
+      circles[idx].style.transform = `translateX(${offset}px)`;
+      input.value = val.toFixed(2);
     });
   });
 
@@ -155,17 +171,21 @@ function setupPanel(panelId, inputIds) {
     const updateValue = (x) => {
       let delta = x - startX;
       let newTranslate = startTranslate + delta;
-      if(newTranslate > 150) newTranslate = 150;
-      if(newTranslate < -150) newTranslate = -150;
+      const minTranslate = 0;
+      const maxTranslate = (maxValue - minValue) * pixelPerUnit;
+      if(newTranslate < minTranslate) newTranslate = minTranslate;
+      if(newTranslate > maxTranslate) newTranslate = maxTranslate;
       circle.style.transform = `translateX(${newTranslate}px)`;
-      let value = (newTranslate / 50).toFixed(2);
-      inputs[idx].value = value;
+      let value = minValue + (newTranslate / pixelPerUnit);
+      inputs[idx].value = value.toFixed(2);
     };
 
     circle.addEventListener('mousedown', e => {
       dragging = true;
       startX = e.clientX;
-      startTranslate = parseFloat(circle.style.transform.replace('translateX(','').replace('px)','')) || 0;
+      const style = window.getComputedStyle(circle);
+      const matrix = style.transform.match(/matrix.*\((.+)\)/);
+      startTranslate = matrix ? parseFloat(matrix[1].split(', ')[4]) : 0;
       circle.style.cursor = 'grabbing';
     });
     document.addEventListener('mousemove', e => { if(dragging) updateValue(e.clientX); });
@@ -174,7 +194,9 @@ function setupPanel(panelId, inputIds) {
     circle.addEventListener('touchstart', e => {
       dragging = true;
       startX = e.touches[0].clientX;
-      startTranslate = parseFloat(circle.style.transform.replace('translateX(','').replace('px)','')) || 0;
+      const style = window.getComputedStyle(circle);
+      const matrix = style.transform.match(/matrix.*\((.+)\)/);
+      startTranslate = matrix ? parseFloat(matrix[1].split(', ')[4]) : 0;
     });
     document.addEventListener('touchmove', e => { if(dragging){ e.preventDefault(); updateValue(e.touches[0].clientX); } }, {passive:false});
     document.addEventListener('touchend', e => dragging = false);
