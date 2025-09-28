@@ -3,78 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター 縦並び固定版 [中央0.00]</title>
+<title>STシミュレーター 縦並び固定</title>
 <style>
 html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  font-family: sans-serif;
-  background-color: #ffffff;
-  overflow: hidden;
+  margin:0; padding:0; width:100%; height:100%;
+  font-family:sans-serif; background:#fff; overflow:hidden;
 }
 .table-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-  padding: 10px;
-  gap: 10px;
+  display:flex; flex-direction:column; justify-content:space-between;
+  height:100%; padding:10px; gap:10px;
 }
 .panel {
-  background-color: #00bfff;
-  border: 2px solid #00796b;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: row;
-  position: relative;
-  flex: 1;
-  max-height: calc(50% - 14px);
+  background:#00bfff; border:2px solid #00796b;
+  border-radius:10px; display:flex; flex-direction:row;
+  position:relative; flex:1; max-height:calc(50% - 14px);
 }
 .line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background-color: black;
+  position:absolute; top:0; bottom:0; width:2px; background:#000;
 }
 .number-labels {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  height: 100%;
-  width: 20px;
+  display:flex; flex-direction:column; justify-content:space-around;
+  height:100%; width:20px;
 }
 .circles-column {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  align-items: flex-start;
-  flex: 1;
-  position: relative;
+  display:flex; flex-direction:column; justify-content:space-around;
+  align-items:flex-start; flex:1; position:relative;
 }
 .circle {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  cursor: grab;
-  border: 1px solid #000;
-  position: absolute;
-  transition: left 0.05s;
+  width:24px; height:24px; border-radius:50%;
+  cursor:grab; border:1px solid #000; position:absolute; transition:left 0.05s;
 }
 .inputs-column {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  height: 100%;
-  width: 60px;
+  display:flex; flex-direction:column; justify-content:space-around;
+  height:100%; width:60px;
 }
 .inputs-column input {
-  width: 100%;
-  padding: 5px;
-  text-align: center;
-  font-size: 0.9rem;
+  width:100%; padding:5px; text-align:center; font-size:0.9rem;
 }
 </style>
 </head>
@@ -82,7 +46,7 @@ html, body {
 
 <div class="table-container">
 
-  <!-- 上段（平均） -->
+  <!-- 上段 -->
   <div class="panel" id="average-panel">
     <div class="number-labels">
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
@@ -105,7 +69,7 @@ html, body {
     </div>
   </div>
 
-  <!-- 下段（展示） -->
+  <!-- 下段 -->
   <div class="panel" id="display-panel">
     <div class="number-labels">
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
@@ -131,92 +95,82 @@ html, body {
 </div>
 
 <script>
-function setupPanel(panelId, inputIds) {
-  const panel = document.getElementById(panelId);
-  const inputs = inputIds.map(id => document.getElementById(id));
-  const circles = panel.querySelectorAll('.circle');
+function setupPanel(panelId,inputIds){
+  const panel=document.getElementById(panelId);
+  const inputs=inputIds.map(id=>document.getElementById(id));
+  const circles=panel.querySelectorAll('.circle');
 
-  const minValue = -0.30;
-  const maxValue = 0.50;
+  const minValue=-0.30;
+  const maxValue=0.50;
+  const zeroPos=panel.clientWidth/2; // スタートライン = 0.00
+  const unitPixelsLeft=zeroPos*0.6;  // 左側幅
+  const unitPixelsRight=(panel.clientWidth-zeroPos-24)*1; // 右側幅
 
-  const zeroPos = panel.clientWidth / 2; // ○中央位置 = スタートライン右端
-  const unitPixelsLeft = zeroPos;         // -0.30 -> 0
-  const unitPixelsRight = panel.clientWidth - zeroPos - 24; // 0 -> +0.50
-
-  // スタートラインを○の右側に固定
-  const line = document.createElement('div');
-  line.className = 'line';
-  line.style.left = `${zeroPos}px`;
+  // スタートライン設置
+  const line=document.createElement('div');
+  line.className='line';
+  line.style.left=`${zeroPos}px`;
   panel.appendChild(line);
 
-  // 初期配置: ○中央 = 0.00
-  circles.forEach((circle, idx) => {
-    const vertPos = idx * (panel.clientHeight / 6) + (panel.clientHeight / 12 - circle.offsetHeight/2);
-    circle.style.top = `${vertPos}px`;
-    circle.style.left = `${zeroPos - circle.offsetWidth/2}px`;
-    circle.dataset.value = 0.0;
+  // 初期配置: ○中央=0.00
+  circles.forEach((circle,idx)=>{
+    const vertPos=idx*(panel.clientHeight/6)+(panel.clientHeight/12-circle.offsetHeight/2);
+    circle.style.top=`${vertPos}px`;
+    circle.style.left=`${zeroPos-circle.offsetWidth/2}px`;
+    circle.dataset.value=0.0;
   });
 
   // 入力連動
-  inputs.forEach((input, idx) => {
-    input.addEventListener('input', () => {
-      let val = parseFloat(input.value);
-      if(isNaN(val)) val = 0;
-      if(val < minValue) val = minValue;
-      if(val > maxValue) val = maxValue;
-
-      let px = val < 0 
-        ? zeroPos + val/unitPixelsLeft*zeroPos - circles[idx].offsetWidth/2 
-        : zeroPos + val/unitPixelsRight*unitPixelsRight - circles[idx].offsetWidth/2;
-      circles[idx].style.left = `${px}px`;
-      circles[idx].dataset.value = val;
-      input.value = val.toFixed(2);
+  inputs.forEach((input,idx)=>{
+    input.addEventListener('input',()=>{
+      let val=parseFloat(input.value);
+      if(isNaN(val)) val=0;
+      if(val<minValue) val=minValue;
+      if(val>maxValue) val=maxValue;
+      let px=val<0 ? zeroPos+val/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth/2
+                    : zeroPos+val/unitPixelsRight*unitPixelsRight-circle.offsetWidth/2;
+      circles[idx].style.left=`${px}px`;
+      circles[idx].dataset.value=val;
+      input.value=val.toFixed(2);
     });
   });
 
-  // ドラッグ操作
-  circles.forEach((circle, idx) => {
-    let dragging = false;
-    let startX = 0;
-    let startValue = 0;
-
-    const moveCircle = (x) => {
-      let delta = x - startX;
-      let newValue = startValue + (delta / (startValue < 0 ? unitPixelsLeft : unitPixelsRight));
-      if(newValue < minValue) newValue = minValue;
-      if(newValue > maxValue) newValue = maxValue;
-
-      let px = newValue < 0 
-        ? zeroPos + newValue/unitPixelsLeft*zeroPos - circle.offsetWidth/2 
-        : zeroPos + newValue/unitPixelsRight*unitPixelsRight - circle.offsetWidth/2;
-      circle.style.left = `${px}px`;
-      circle.dataset.value = newValue;
-      inputs[idx].value = newValue.toFixed(2);
+  // ドラッグ
+  circles.forEach((circle,idx)=>{
+    let dragging=false;
+    let startX=0;
+    let startValue=0;
+    const moveCircle=(x)=>{
+      let delta=x-startX;
+      let newValue=startValue + (delta / (startValue<0 ? unitPixelsLeft : unitPixelsRight));
+      if(newValue<minValue)newValue=minValue;
+      if(newValue>maxValue)newValue=maxValue;
+      let px=newValue<0 ? zeroPos+newValue/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth/2
+                        : zeroPos+newValue/unitPixelsRight*unitPixelsRight-circle.offsetWidth/2;
+      circle.style.left=`${px}px`;
+      circle.dataset.value=newValue;
+      inputs[idx].value=newValue.toFixed(2);
     };
-
-    circle.addEventListener('mousedown', e => {
-      dragging = true;
-      startX = e.clientX;
-      startValue = parseFloat(circle.dataset.value);
-      circle.style.cursor = 'grabbing';
+    circle.addEventListener('mousedown',e=>{
+      dragging=true;
+      startX=e.clientX;
+      startValue=parseFloat(circle.dataset.value);
+      circle.style.cursor='grabbing';
     });
-    document.addEventListener('mousemove', e => { if(dragging) moveCircle(e.clientX); });
-    document.addEventListener('mouseup', e => dragging = false);
-
-    circle.addEventListener('touchstart', e => {
-      dragging = true;
-      startX = e.touches[0].clientX;
-      startValue = parseFloat(circle.dataset.value);
+    document.addEventListener('mousemove',e=>{if(dragging)moveCircle(e.clientX);});
+    document.addEventListener('mouseup',e=>dragging=false);
+    circle.addEventListener('touchstart',e=>{
+      dragging=true; startX=e.touches[0].clientX;
+      startValue=parseFloat(circle.dataset.value);
     });
-    document.addEventListener('touchmove', e => { 
-      if(dragging){ 
-        e.preventDefault(); 
-        moveCircle(e.touches[0].clientX); 
-      } 
-    }, {passive:false});
-    document.addEventListener('touchend', e => dragging = false);
+    document.addEventListener('touchmove',e=>{if(dragging){e.preventDefault(); moveCircle(e.touches[0].clientX);}}, {passive:false});
+    document.addEventListener('touchend',e=>dragging=false);
   });
 }
 
-setupPanel('average-panel', ['avg1','avg2','avg3','avg4','avg5','avg6']);
-setupPanel('display
+setupPanel('average-panel',['avg1','avg2','avg3','avg4','avg5','avg6']);
+setupPanel('display-panel',['disp1','disp2','disp3','disp4','disp5','disp6']);
+</script>
+
+</body>
+</html>
