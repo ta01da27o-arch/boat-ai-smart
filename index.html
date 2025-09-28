@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター 縦並び固定</title>
+<title>STシミュレーター 初期右側0.00版</title>
 <style>
 html, body {
   margin:0; padding:0; width:100%; height:100%;
@@ -102,21 +102,21 @@ function setupPanel(panelId,inputIds){
 
   const minValue=-0.30;
   const maxValue=0.50;
-  const zeroPos=panel.clientWidth/2; // スタートライン = 0.00
-  const unitPixelsLeft=zeroPos*0.6;  // 左側幅
-  const unitPixelsRight=(panel.clientWidth-zeroPos-24)*1; // 右側幅
+  const zeroPos=panel.clientWidth/2; // スタートライン位置
+  const unitPixelsLeft=zeroPos*0.6;  
+  const unitPixelsRight=(panel.clientWidth-zeroPos-24); 
 
-  // スタートライン設置
+  // スタートライン
   const line=document.createElement('div');
   line.className='line';
   line.style.left=`${zeroPos}px`;
   panel.appendChild(line);
 
-  // 初期配置: ○中央=0.00
+  // 初期配置: ○の右側面 = 0.00
   circles.forEach((circle,idx)=>{
     const vertPos=idx*(panel.clientHeight/6)+(panel.clientHeight/12-circle.offsetHeight/2);
     circle.style.top=`${vertPos}px`;
-    circle.style.left=`${zeroPos-circle.offsetWidth/2}px`;
+    circle.style.left=`${zeroPos-circle.offsetWidth}px`;
     circle.dataset.value=0.0;
   });
 
@@ -127,8 +127,8 @@ function setupPanel(panelId,inputIds){
       if(isNaN(val)) val=0;
       if(val<minValue) val=minValue;
       if(val>maxValue) val=maxValue;
-      let px=val<0 ? zeroPos+val/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth/2
-                    : zeroPos+val/unitPixelsRight*unitPixelsRight-circle.offsetWidth/2;
+      let px=val<0 ? zeroPos+val/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth
+                    : zeroPos+val/unitPixelsRight*unitPixelsRight-circle.offsetWidth;
       circles[idx].style.left=`${px}px`;
       circles[idx].dataset.value=val;
       input.value=val.toFixed(2);
@@ -145,8 +145,8 @@ function setupPanel(panelId,inputIds){
       let newValue=startValue + (delta / (startValue<0 ? unitPixelsLeft : unitPixelsRight));
       if(newValue<minValue)newValue=minValue;
       if(newValue>maxValue)newValue=maxValue;
-      let px=newValue<0 ? zeroPos+newValue/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth/2
-                        : zeroPos+newValue/unitPixelsRight*unitPixelsRight-circle.offsetWidth/2;
+      let px=newValue<0 ? zeroPos+newValue/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth
+                        : zeroPos+newValue/unitPixelsRight*unitPixelsRight-circle.offsetWidth;
       circle.style.left=`${px}px`;
       circle.dataset.value=newValue;
       inputs[idx].value=newValue.toFixed(2);
