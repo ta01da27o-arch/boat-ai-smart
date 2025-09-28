@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター 縦並び固定版 [-1,+1]</title>
+<title>STシミュレーター 縦並び固定版 [-1,+1] 0.10右移動</title>
 <style>
 html, body {
   margin: 0;
@@ -34,7 +34,7 @@ html, body {
 }
 .line {
   position: absolute;
-  left: 50%; /* スタートライン = 0.00 */
+  left: calc(50% + 5%); /* 0.10分右に移動 */
   top: 0;
   bottom: 0;
   width: 2px;
@@ -142,7 +142,8 @@ function setupPanel(panelId, inputIds) {
   const minValue = -1.0;
   const maxValue = 1.0;
 
-  const zeroPos = panel.clientWidth / 2; // スタートライン中央
+  // スタートラインを右に0.10分移動
+  const zeroPos = panel.clientWidth / 2 + panel.clientWidth*0.05; // 0.05 = 0.10/2のピクセル換算
   const unitPixelsLeft = zeroPos;         // -1 -> 0
   const unitPixelsRight = panel.clientWidth - zeroPos - 24; // 0 -> +1
 
