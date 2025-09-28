@@ -20,22 +20,27 @@ html, body {
 }
 .line {
   position:absolute; top:0; bottom:0; width:2px; background:#000;
+  z-index:0; /* ○より下 */
 }
 .number-labels {
   display:flex; flex-direction:column; justify-content:space-around;
   height:100%; width:20px;
+  z-index:1;
 }
 .circles-column {
   display:flex; flex-direction:column; justify-content:space-around;
   align-items:flex-start; flex:1; position:relative;
+  z-index:2;
 }
 .circle {
   width:24px; height:24px; border-radius:50%;
   cursor:grab; border:1px solid #000; position:absolute; transition:left 0.05s;
+  z-index:2;
 }
 .inputs-column {
   display:flex; flex-direction:column; justify-content:space-around;
   height:100%; width:60px;
+  z-index:2;
 }
 .inputs-column input {
   width:100%; padding:5px; text-align:center; font-size:0.9rem;
@@ -48,6 +53,7 @@ html, body {
 
   <!-- 上段 -->
   <div class="panel" id="average-panel">
+    <div class="line" style="left:50%;"></div>
     <div class="number-labels">
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
@@ -71,6 +77,7 @@ html, body {
 
   <!-- 下段 -->
   <div class="panel" id="display-panel">
+    <div class="line" style="left:50%;"></div>
     <div class="number-labels">
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
@@ -102,17 +109,13 @@ function setupPanel(panelId,inputIds){
 
   const minValue=-0.30;
   const maxValue=0.50;
-  const zeroPos=panel.clientWidth/2; // スタートライン位置
-  const unitPixelsLeft=zeroPos*0.6;  
-  const unitPixelsRight=(panel.clientWidth-zeroPos-24); 
+  const zeroPos=panel.clientWidth/2; // スタートラインの位置
+  const leftRange = 0.30;  // 左側の最大値幅
+  const rightRange = 0.50; // 右側の最大値幅
+  const leftPixels = zeroPos;  // 左幅ピクセル
+  const rightPixels = panel.clientWidth-zeroPos-24; // 右幅ピクセル (○幅考慮)
 
-  // スタートライン
-  const line=document.createElement('div');
-  line.className='line';
-  line.style.left=`${zeroPos}px`;
-  panel.appendChild(line);
-
-  // 初期配置: ○の右側面 = 0.00
+  // 初期配置: ○の右側面が中央ラインに接触 (0.00)
   circles.forEach((circle,idx)=>{
     const vertPos=idx*(panel.clientHeight/6)+(panel.clientHeight/12-circle.offsetHeight/2);
     circle.style.top=`${vertPos}px`;
@@ -127,8 +130,8 @@ function setupPanel(panelId,inputIds){
       if(isNaN(val)) val=0;
       if(val<minValue) val=minValue;
       if(val>maxValue) val=maxValue;
-      let px=val<0 ? zeroPos+val/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth
-                    : zeroPos+val/unitPixelsRight*unitPixelsRight-circle.offsetWidth;
+      const px = val<0 ? zeroPos + val/(-minValue)*(-leftPixels)-circles[idx].offsetWidth
+                        : zeroPos + val/rightRange*rightPixels-circles[idx].offsetWidth;
       circles[idx].style.left=`${px}px`;
       circles[idx].dataset.value=val;
       input.value=val.toFixed(2);
@@ -141,19 +144,18 @@ function setupPanel(panelId,inputIds){
     let startX=0;
     let startValue=0;
     const moveCircle=(x)=>{
-      let delta=x-startX;
-      let newValue=startValue + (delta / (startValue<0 ? unitPixelsLeft : unitPixelsRight));
+      const delta=x-startX;
+      let newValue=startValue + (startValue<0 ? delta/leftPixels*minValue : delta/rightPixels*maxValue);
       if(newValue<minValue)newValue=minValue;
       if(newValue>maxValue)newValue=maxValue;
-      let px=newValue<0 ? zeroPos+newValue/unitPixelsLeft*unitPixelsLeft-circle.offsetWidth
-                        : zeroPos+newValue/unitPixelsRight*unitPixelsRight-circle.offsetWidth;
+      const px = newValue<0 ? zeroPos + newValue/(-minValue)*(-leftPixels)-circle.offsetWidth
+                            : zeroPos + newValue/rightRange*rightPixels-circle.offsetWidth;
       circle.style.left=`${px}px`;
       circle.dataset.value=newValue;
       inputs[idx].value=newValue.toFixed(2);
     };
     circle.addEventListener('mousedown',e=>{
-      dragging=true;
-      startX=e.clientX;
+      dragging=true; startX=e.clientX;
       startValue=parseFloat(circle.dataset.value);
       circle.style.cursor='grabbing';
     });
@@ -163,7 +165,7 @@ function setupPanel(panelId,inputIds){
       dragging=true; startX=e.touches[0].clientX;
       startValue=parseFloat(circle.dataset.value);
     });
-    document.addEventListener('touchmove',e=>{if(dragging){e.preventDefault(); moveCircle(e.touches[0].clientX);}}, {passive:false});
+    document.addEventListener('touchmove',e=>{if(dragging){ e.preventDefault(); moveCircle(e.touches[0].clientX);}}, {passive:false});
     document.addEventListener('touchend',e=>dragging=false);
   });
 }
