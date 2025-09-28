@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター 縦並び固定版</title>
+<title>STシミュレーター</title>
 <style>
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
   width: 100%;
+  overflow: hidden;
   font-family: sans-serif;
   background-color: #ffffff; /* 枠外白 */
-  overflow: hidden;
 }
 .table-container {
   display: flex;
@@ -24,6 +24,7 @@ html, body {
 }
 .panel {
   background-color: #00bfff; /* 枠内ディープスカイブルー */
+  padding: 5px;
   border: 2px solid #00796b;
   border-radius: 10px;
   display: flex;
@@ -34,7 +35,7 @@ html, body {
 }
 .line {
   position: absolute;
-  left: 50%; /* スタートライン = 0.00 */
+  left: 50%;
   top: 0;
   bottom: 0;
   width: 2px;
@@ -50,8 +51,7 @@ html, body {
 .circles-column {
   display: flex;
   flex-direction: column;
-  justify-content: space-around; /* 縦並び固定 */
-  align-items: flex-start;
+  justify-content: space-around;
   flex: 1;
   position: relative;
 }
@@ -60,8 +60,7 @@ html, body {
   height: 24px;
   border-radius: 50%;
   cursor: grab;
-  border: 1px solid #000;
-  position: absolute; /* 横移動用 */
+  position: absolute;
   transition: transform 0.1s;
 }
 .inputs-column {
@@ -141,80 +140,84 @@ function setupPanel(panelId, inputIds) {
 
   const minValue = -2.0;
   const maxValue = 1.0;
-  const zeroPos = panel.clientWidth / 2; // スタートラインのピクセル位置
-  const leftPixels = zeroPos * (2/3); // 左側幅ピクセル換算（比率調整）
-  const rightPixels = panel.clientWidth - zeroPos; // 右側幅ピクセル
-  const unitPixelsLeft = leftPixels / 2; // -2.00 -> 0.00
-  const unitPixelsRight = rightPixels / 1; // 0.00 -> +1.00
 
-  // 初期位置: 左端 (-2.00)
-  circles.forEach((circle, idx) => {
-    const vertPos = idx * (panel.clientHeight / 6) + (panel.clientHeight/12 - circle.offsetHeight/2);
-    circle.style.top = `${vertPos}px`;
-    circle.style.left = `${zeroPos - 2*unitPixelsLeft - circle.offsetWidth}px`;
-    circle.dataset.value = minValue;
-  });
+  // 黒線の位置を基準に0.00
+  function getZeroPos(circle) {
+    const line = panel.querySelector('.line');
+    const lineRect = line.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return lineRect.left - panelRect.left; // px
+  }
 
-  // 入力連動
+  function valueToPx(val, circleWidth) {
+    const zeroPos = getZeroPos(circles[0]);
+    const pxPerLeftUnit = zeroPos / 2; // -2.0 → zeroPos
+    const pxPerRightUnit = (panel.clientWidth - zeroPos - circleWidth) / 1; // +1.0 → panel width - zeroPos
+    if (val < 0) return zeroPos + val * pxPerLeftUnit - circleWidth; // 左側
+    else return zeroPos + val * pxPerRightUnit; // 右側
+  }
+
+  function pxToValue(px, circleWidth) {
+    const zeroPos = getZeroPos(circles[0]);
+    const pxPerLeftUnit = zeroPos / 2;
+    const pxPerRightUnit = (panel.clientWidth - zeroPos - circleWidth) / 1;
+    if (px + circleWidth < zeroPos) return (px + circleWidth - zeroPos) / pxPerLeftUnit;
+    else return (px - zeroPos) / pxPerRightUnit;
+  }
+
   inputs.forEach((input, idx) => {
+    // 初期位置
+    circles[idx].style.left = valueToPx(minValue, circles[idx].offsetWidth) + 'px';
+    input.value = minValue.toFixed(2);
+
     input.addEventListener('input', () => {
       let val = parseFloat(input.value);
-      if(isNaN(val)) val = minValue;
-      if(val < minValue) val = minValue;
-      if(val > maxValue) val = maxValue;
-
-      let px = val < 0 ? zeroPos + val * unitPixelsLeft : zeroPos + val * unitPixelsRight;
-      circles[idx].style.left = `${px - circles[idx].offsetWidth}px`;
-      circles[idx].dataset.value = val;
+      if (isNaN(val)) val = minValue;
+      if (val < minValue) val = minValue;
+      if (val > maxValue) val = maxValue;
+      circles[idx].style.left = valueToPx(val, circles[idx].offsetWidth) + 'px';
       input.value = val.toFixed(2);
     });
   });
 
-  // ドラッグ操作
   circles.forEach((circle, idx) => {
     let dragging = false;
     let startX = 0;
-    let startValue = 0;
+    let startLeft = 0;
 
-    const moveCircle = (x) => {
-      let delta = x - startX;
-      let newValue = startValue + (delta / (startValue<0 ? unitPixelsLeft : unitPixelsRight));
-      if(newValue < minValue) newValue = minValue;
-      if(newValue > maxValue) newValue = maxValue;
-
-      let px = newValue < 0 ? zeroPos + newValue * unitPixelsLeft : zeroPos + newValue * unitPixelsRight;
-      circle.style.left = `${px - circle.offsetWidth}px`;
-      circle.dataset.value = newValue;
-      inputs[idx].value = newValue.toFixed(2);
+    const updateValue = (clientX) => {
+      let deltaX = clientX - startX;
+      let newLeft = startLeft + deltaX;
+      // 左右制限
+      const minLeft = valueToPx(minValue, circle.offsetWidth);
+      const maxLeft = valueToPx(maxValue, circle.offsetWidth);
+      if (newLeft < minLeft) newLeft = minLeft;
+      if (newLeft > maxLeft) newLeft = maxLeft;
+      circle.style.left = newLeft + 'px';
+      let val = pxToValue(newLeft, circle.offsetWidth);
+      if (val < minValue) val = minValue;
+      if (val > maxValue) val = maxValue;
+      inputs[idx].value = val.toFixed(2);
     };
 
     circle.addEventListener('mousedown', e => {
       dragging = true;
       startX = e.clientX;
-      startValue = parseFloat(circle.dataset.value);
+      startLeft = parseFloat(circle.style.left);
       circle.style.cursor = 'grabbing';
     });
-    document.addEventListener('mousemove', e => { if(dragging) moveCircle(e.clientX); });
+    document.addEventListener('mousemove', e => { if(dragging) updateValue(e.clientX); });
     document.addEventListener('mouseup', e => dragging = false);
 
     circle.addEventListener('touchstart', e => {
       dragging = true;
       startX = e.touches[0].clientX;
-      startValue = parseFloat(circle.dataset.value);
+      startLeft = parseFloat(circle.style.left);
     });
-    document.addEventListener('touchmove', e => { 
-      if(dragging){ 
-        e.preventDefault(); 
-        moveCircle(e.touches[0].clientX); 
-      } 
+    document.addEventListener('touchmove', e => {
+      if(dragging) {
+        e.preventDefault();
+        updateValue(e.touches[0].clientX);
+      }
     }, {passive:false});
-    document.addEventListener('touchend', e => dragging = false);
-  });
-}
-
-setupPanel('average-panel', ['avg1','avg2','avg3','avg4','avg5','avg6']);
-setupPanel('display-panel', ['disp1','disp2','disp3','disp4','disp5','disp6']);
-</script>
-
-</body>
-</html>
+    document.addEventListener('touch
