@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター 初期右側0.00版</title>
+<title>STシミュレーター ○右端0.00版</title>
 <style>
 html, body {
   margin:0; padding:0; width:100%; height:100%;
@@ -20,7 +20,7 @@ html, body {
 }
 .line {
   position:absolute; top:0; bottom:0; width:2px; background:#000;
-  z-index:0; /* ○より下 */
+  left:50%; z-index:0;
 }
 .number-labels {
   display:flex; flex-direction:column; justify-content:space-around;
@@ -53,7 +53,7 @@ html, body {
 
   <!-- 上段 -->
   <div class="panel" id="average-panel">
-    <div class="line" style="left:50%;"></div>
+    <div class="line"></div>
     <div class="number-labels">
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
@@ -77,7 +77,7 @@ html, body {
 
   <!-- 下段 -->
   <div class="panel" id="display-panel">
-    <div class="line" style="left:50%;"></div>
+    <div class="line"></div>
     <div class="number-labels">
       <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div>
     </div>
@@ -107,19 +107,18 @@ function setupPanel(panelId,inputIds){
   const inputs=inputIds.map(id=>document.getElementById(id));
   const circles=panel.querySelectorAll('.circle');
 
-  const minValue=-0.30;
+  const minValue=-0.50;
   const maxValue=0.50;
-  const zeroPos=panel.clientWidth/2; // スタートラインの位置
-  const leftRange = 0.30;  // 左側の最大値幅
-  const rightRange = 0.50; // 右側の最大値幅
-  const leftPixels = zeroPos;  // 左幅ピクセル
-  const rightPixels = panel.clientWidth-zeroPos-24; // 右幅ピクセル (○幅考慮)
+  const zeroPos=panel.clientWidth/2; // 中央ライン
+  const leftPixels=zeroPos-0; // 左側
+  const rightPixels=panel.clientWidth-zeroPos-24; // 右側
 
-  // 初期配置: ○の右側面が中央ラインに接触 (0.00)
+  // 初期配置: 横0.00 右端が中央ライン
   circles.forEach((circle,idx)=>{
     const vertPos=idx*(panel.clientHeight/6)+(panel.clientHeight/12-circle.offsetHeight/2);
     circle.style.top=`${vertPos}px`;
-    circle.style.left=`${zeroPos-circle.offsetWidth}px`;
+    // ○の右端を中央に合わせる
+    circle.style.left=`${zeroPos - circle.offsetWidth}px`;
     circle.dataset.value=0.0;
   });
 
@@ -130,8 +129,8 @@ function setupPanel(panelId,inputIds){
       if(isNaN(val)) val=0;
       if(val<minValue) val=minValue;
       if(val>maxValue) val=maxValue;
-      const px = val<0 ? zeroPos + val/(-minValue)*(-leftPixels)-circles[idx].offsetWidth
-                        : zeroPos + val/rightRange*rightPixels-circles[idx].offsetWidth;
+      const px = val<0 ? zeroPos + val/minValue*leftPixels - circles[idx].offsetWidth
+                        : zeroPos + val/maxValue*rightPixels - circles[idx].offsetWidth;
       circles[idx].style.left=`${px}px`;
       circles[idx].dataset.value=val;
       input.value=val.toFixed(2);
@@ -140,16 +139,14 @@ function setupPanel(panelId,inputIds){
 
   // ドラッグ
   circles.forEach((circle,idx)=>{
-    let dragging=false;
-    let startX=0;
-    let startValue=0;
+    let dragging=false, startX=0, startValue=0;
     const moveCircle=(x)=>{
-      const delta=x-startX;
+      let delta=x-startX;
       let newValue=startValue + (startValue<0 ? delta/leftPixels*minValue : delta/rightPixels*maxValue);
       if(newValue<minValue)newValue=minValue;
       if(newValue>maxValue)newValue=maxValue;
-      const px = newValue<0 ? zeroPos + newValue/(-minValue)*(-leftPixels)-circle.offsetWidth
-                            : zeroPos + newValue/rightRange*rightPixels-circle.offsetWidth;
+      const px = newValue<0 ? zeroPos + newValue/minValue*leftPixels - circle.offsetWidth
+                            : zeroPos + newValue/maxValue*rightPixels - circle.offsetWidth;
       circle.style.left=`${px}px`;
       circle.dataset.value=newValue;
       inputs[idx].value=newValue.toFixed(2);
@@ -165,7 +162,7 @@ function setupPanel(panelId,inputIds){
       dragging=true; startX=e.touches[0].clientX;
       startValue=parseFloat(circle.dataset.value);
     });
-    document.addEventListener('touchmove',e=>{if(dragging){ e.preventDefault(); moveCircle(e.touches[0].clientX);}}, {passive:false});
+    document.addEventListener('touchmove',e=>{if(dragging){e.preventDefault(); moveCircle(e.touches[0].clientX);}}, {passive:false});
     document.addEventListener('touchend',e=>dragging=false);
   });
 }
