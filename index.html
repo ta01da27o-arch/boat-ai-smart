@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>STシミュレーター ○右端0.00版</title>
+<title>STシミュレーター 左右可動版</title>
 <style>
 html, body {
   margin:0; padding:0; width:100%; height:100%;
@@ -92,10 +92,9 @@ function setupPanel(panelId){
   const minValue=-0.5;
   const maxValue=0.5;
   const zeroPos=panel.clientWidth/2; // 中央ライン
-  const leftPixels=zeroPos;
-  const rightPixels=panel.clientWidth-zeroPos-24; // ○幅を引く
+  const totalPixelsLeft=zeroPos-0;   // 左端から中央まで
+  const totalPixelsRight=panel.clientWidth-zeroPos-circle.offsetWidth; // 右端まで
 
-  // 初期配置: ○の右端 = 中央ライン = 0.00
   circles.forEach((circle,idx)=>{
     const vertPos=idx*(panel.clientHeight/6)+(panel.clientHeight/12-circle.offsetHeight/2);
     circle.style.top=`${vertPos}px`;
@@ -106,19 +105,25 @@ function setupPanel(panelId){
 
   circles.forEach((circle)=>{
     let dragging=false, startX=0, startValue=0;
+
     const moveCircle=(x)=>{
       let delta=x-startX;
       let newValue=startValue;
+
+      // 左右線形マッピング
       if(startValue>=0){
-        newValue=startValue + delta/rightPixels*maxValue;
-      }else{
-        newValue=startValue + delta/leftPixels*-minValue;
+        newValue=startValue + delta/totalPixelsRight*maxValue;
+      } else {
+        newValue=startValue + delta/totalPixelsLeft*-minValue;
       }
+
       if(newValue>maxValue)newValue=maxValue;
       if(newValue<minValue)newValue=minValue;
 
-      const px = newValue>=0 ? zeroPos + newValue/maxValue*rightPixels - circle.offsetWidth
-                             : zeroPos + newValue/minValue*leftPixels - circle.offsetWidth;
+      const px=newValue>=0
+        ? zeroPos + newValue/maxValue*totalPixelsRight - circle.offsetWidth
+        : zeroPos + newValue/minValue*totalPixelsLeft - circle.offsetWidth;
+
       circle.style.left=`${px}px`;
       circle.dataset.value=newValue;
       circle.querySelector('.value-label').textContent=newValue.toFixed(2);
