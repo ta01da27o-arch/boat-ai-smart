@@ -86,61 +86,64 @@ html, body {
 
 <script>
 function setupPanel(panelId){
-  const panel=document.getElementById(panelId);
-  const circles=panel.querySelectorAll('.circle');
+  const panel = document.getElementById(panelId);
+  const circles = panel.querySelectorAll('.circle');
 
-  const minValue=-0.5;
-  const maxValue=0.5;
-  const zeroPos=panel.clientWidth/2; // 中央ライン
-  const totalPixelsLeft=zeroPos-0;   // 左端から中央まで
-  const totalPixelsRight=panel.clientWidth-zeroPos-circle.offsetWidth; // 右端まで
+  const minValue = -0.5;
+  const maxValue = 0.5;
+  const zeroPos = panel.clientWidth / 2; // 中央ライン
+  const circleWidth = 24;
 
-  circles.forEach((circle,idx)=>{
-    const vertPos=idx*(panel.clientHeight/6)+(panel.clientHeight/12-circle.offsetHeight/2);
-    circle.style.top=`${vertPos}px`;
-    circle.style.left=`${zeroPos - circle.offsetWidth}px`;
-    circle.dataset.value=0.0;
-    circle.querySelector('.value-label').textContent='0.00';
+  const leftPixels = zeroPos - 0; // 左側範囲
+  const rightPixels = panel.clientWidth - zeroPos - circleWidth; // 右側範囲
+
+  circles.forEach((circle, idx)=>{
+    // 縦位置
+    const vertPos = idx * (panel.clientHeight/6) + (panel.clientHeight/12 - circle.offsetHeight/2);
+    circle.style.top = `${vertPos}px`;
+    // 横初期位置: ○の右端が中央ラインに接する位置
+    circle.style.left = `${zeroPos - circleWidth}px`;
+    circle.dataset.value = 0.0;
+    circle.querySelector('.value-label').textContent = '0.00';
   });
 
   circles.forEach((circle)=>{
     let dragging=false, startX=0, startValue=0;
 
     const moveCircle=(x)=>{
-      let delta=x-startX;
-      let newValue=startValue;
-
-      // 左右線形マッピング
-      if(startValue>=0){
-        newValue=startValue + delta/totalPixelsRight*maxValue;
+      let delta = x - startX;
+      let newValue = startValue;
+      if(startValue >= 0){
+        newValue = startValue + delta / rightPixels * maxValue;
       } else {
-        newValue=startValue + delta/totalPixelsLeft*-minValue;
+        newValue = startValue + delta / leftPixels * -minValue;
       }
-
       if(newValue>maxValue)newValue=maxValue;
       if(newValue<minValue)newValue=minValue;
 
-      const px=newValue>=0
-        ? zeroPos + newValue/maxValue*totalPixelsRight - circle.offsetWidth
-        : zeroPos + newValue/minValue*totalPixelsLeft - circle.offsetWidth;
+      const px = newValue >= 0
+        ? zeroPos + newValue / maxValue * rightPixels - circleWidth
+        : zeroPos + newValue / minValue * leftPixels - circleWidth;
 
-      circle.style.left=`${px}px`;
-      circle.dataset.value=newValue;
-      circle.querySelector('.value-label').textContent=newValue.toFixed(2);
+      circle.style.left = `${px}px`;
+      circle.dataset.value = newValue;
+      circle.querySelector('.value-label').textContent = newValue.toFixed(2);
     };
 
-    circle.addEventListener('mousedown',e=>{
+    circle.addEventListener('mousedown', e=>{
       dragging=true; startX=e.clientX; startValue=parseFloat(circle.dataset.value);
       circle.style.cursor='grabbing';
     });
-    document.addEventListener('mousemove',e=>{if(dragging) moveCircle(e.clientX);});
-    document.addEventListener('mouseup',e=>dragging=false);
+    document.addEventListener('mousemove', e=>{ if(dragging) moveCircle(e.clientX); });
+    document.addEventListener('mouseup', e=>dragging=false);
 
-    circle.addEventListener('touchstart',e=>{
+    circle.addEventListener('touchstart', e=>{
       dragging=true; startX=e.touches[0].clientX; startValue=parseFloat(circle.dataset.value);
     });
-    document.addEventListener('touchmove',e=>{if(dragging){ e.preventDefault(); moveCircle(e.touches[0].clientX); }},{passive:false});
-    document.addEventListener('touchend',e=>dragging=false);
+    document.addEventListener('touchmove', e=>{
+      if(dragging){ e.preventDefault(); moveCircle(e.touches[0].clientX); }
+    }, {passive:false});
+    document.addEventListener('touchend', e=>dragging=false);
   });
 }
 
