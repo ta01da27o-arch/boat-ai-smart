@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>競艇AI予想</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="title-wrap">
+      <h1 class="app-title">競艇AI予想</h1>
+      <div class="meta-row">
+        <div id="dateLabel" class="date-label">--/--/----</div>
+        <div class="tabs">
+          <button id="todayBtn" class="tab active">本日</button>
+          <button id="yesterdayBtn" class="tab">前日</button>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="refreshBtn" class="btn refresh">更新</button>
+      <div id="aiStatus" class="ai-status">AI学習中...</div>
+    </div>
+  </header>
+
+  <main class="view">
+    <!-- 24場一覧：横4 x 縦6 固定 -->
+    <section id="screen-venues" class="screen active">
+      <div class="card">
+        <div id="venuesGrid" class="venues-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- レース番号画面（4 x 3 = 12ボタン） -->
+    <section id="screen-races" class="screen">
+      <div class="card screen-top">
+        <div class="screen-title" id="venueTitle">-</div>
+        <button id="backToVenues" class="btn back">戻る</button>
+      </div>
+      <div class="card">
+        <div id="racesGrid" class="races-grid"></div>
+      </div>
+    </section>
+
+    <!-- 出走表 -->
+    <section id="screen-detail" class="screen">
+      <div class="card screen-top">
+        <div class="screen-title" id="raceTitle">-</div>
+        <button id="backToRaces" class="btn back">戻る</button>
+      </div>
+
+      <!-- 出走表 -->
+      <div class="card">
+        <table class="table" id="entryTable">
+          <thead>
+            <tr>
+              <th>艇</th>
+              <th>級 / 選手名 / ST</th>
+              <th>F</th>
+              <th>全国</th>
+              <th>当地</th>
+              <th>MT</th>
+              <th>コース</th>
+              <th>評価</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- AI予想 -->
+      <div class="card ai-block">
+        <div class="ai-col">
+          <div class="h3">AI 本命</div>
+          <table class="table prediction" id="aiMain">
+            <thead><tr><th>買い目</th><th>確率</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="ai-col">
+          <div class="h3">AI 穴</div>
+          <table class="table prediction" id="aiSub">
+            <thead><tr><th>買い目</th><th>確率</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- コース別コメント -->
+      <div class="card">
+        <div class="h3">展開予想コメント（1～6コース）</div>
+        <table class="table" id="commentTable">
+          <thead><tr><th>コース</th><th>コメント</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- AI順位予測 -->
+      <div class="card">
+        <div class="h3">AI 順位予測</div>
+        <table class="table" id="rankingTable">
+          <thead>
+            <tr><th>順位</th><th>艇</th><th>選手名</th><th>評価値</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- 🆕 レース結果（history.json） -->
+      <div class="card">
+        <div class="h3">📊 最新レース結果</div>
+        <table class="table" id="resultTable">
+          <thead>
+            <tr>
+              <th>着順</th>
+              <th>艇</th>
+              <th>選手名</th>
+              <th>ST</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="resultNote" class="note">※ 前日または本日終了レースを自動反映</div>
+      </div>
+
+      <!-- 🔽 AI 学習・自動生成連携セクション（hidden） -->
+      <section id="aiEngine" class="hidden">
+        <textarea id="aiLog" readonly></textarea>
+      </section>
+
+    </section>
+  </main>
+
+  <footer class="app-footer">© 2025 BOAT AI</footer>
+
+  <!-- ✅ データ取得先を正しく指定 -->
+  <script type="module">
+    // app.jsの代わりに、ここでパス指定を正しく設定
+    import './app.js';
+
+    // グローバル設定（データパスを正しく指定）
+    window.DATA_PATH = "../data/data.json";
+    window.HISTORY_PATH = "../data/history.json";
+  </script>
+</body>
+  </html>
