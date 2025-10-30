@@ -24,43 +24,56 @@ const commentTable = document.getElementById("commentTable").querySelector("tbod
 const rankingTable = document.getElementById("rankingTable").querySelector("tbody");
 const resultTable = document.getElementById("resultTable").querySelector("tbody");
 
-const DATA_PATH = window.DATA_PATH || "../data/data.json";
-const HISTORY_PATH = window.HISTORY_PATH || "../data/history.json";
+// ✅ GitHub Pages対応：dataフォルダへの相対パス
+const DATA_PATH = "../data/data.json";
+const HISTORY_PATH = "../data/history.json";
 
 let allData = null;
 let currentVenue = null;
 let currentDateType = "today"; // "today" or "yesterday"
 
+// 日付ラベル更新
 function setDateLabel() {
   const d = new Date();
-  const offset = currentDateType === "yesterday" ? -1 : 0;
-  d.setDate(d.getDate() + offset);
+  if (currentDateType === "yesterday") d.setDate(d.getDate() - 1);
   dateLabel.textContent = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
+// 画面切り替え
 function switchScreen(screen) {
   [screenVenues, screenRaces, screenDetail].forEach(s => s.classList.remove("active"));
   screen.classList.add("active");
 }
 
+// ✅ データ読み込み
 async function loadData() {
   aiStatus.textContent = "データ読込中...";
   try {
     const response = await fetch(DATA_PATH + "?t=" + Date.now());
-    if (!response.ok) throw new Error("HTTPエラー");
+    if (!response.ok) throw new Error("HTTPエラー " + response.status);
     allData = await response.json();
     renderVenues();
-    aiStatus.textContent = "AIデータ取得完了";
+    aiStatus.textContent = "AIデータ取得完了 ✅";
   } catch (e) {
-    aiStatus.textContent = "データ取得失敗";
+    aiStatus.textContent = "データ取得失敗 ❌";
     console.error(e);
+    const msg = document.createElement("div");
+    msg.style.color = "red";
+    msg.style.margin = "10px";
+    msg.textContent = "⚠️ data.jsonの読み込みに失敗しました";
+    document.body.appendChild(msg);
   }
 }
 
+// 開催場一覧
 function renderVenues() {
-  if (!allData || !allData.venues) return;
+  if (!allData || !allData.venues) {
+    aiStatus.textContent = "データなし ❌";
+    return;
+  }
+
   venuesGrid.innerHTML = "";
-  allData.venues.forEach((v, idx) => {
+  allData.venues.forEach(v => {
     const card = document.createElement("div");
     card.className = "venue-card clickable";
     card.innerHTML = `
@@ -71,8 +84,17 @@ function renderVenues() {
     card.addEventListener("click", () => showRaces(v));
     venuesGrid.appendChild(card);
   });
+
+  // 表示確認メッセージ
+  const msg = document.createElement("div");
+  msg.textContent = `✅ ${allData.venues.length}場データを読み込みました`;
+  msg.style.fontSize = "14px";
+  msg.style.margin = "5px";
+  msg.style.color = "green";
+  document.body.appendChild(msg);
 }
 
+// レース一覧
 function showRaces(venue) {
   currentVenue = venue;
   venueTitle.textContent = venue.name;
@@ -89,6 +111,7 @@ function showRaces(venue) {
   switchScreen(screenRaces);
 }
 
+// 詳細
 function showDetail(raceNo) {
   raceTitle.textContent = `${currentVenue.name} ${raceNo}R`;
   const raceData = currentVenue.races?.[raceNo] || {};
@@ -103,6 +126,7 @@ function showDetail(raceNo) {
   switchScreen(screenDetail);
 }
 
+// 表関係
 function renderTable(tbody, data) {
   tbody.innerHTML = "";
   if (!data) return;
