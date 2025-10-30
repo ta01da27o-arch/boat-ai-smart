@@ -1,22 +1,27 @@
 name: Fetch Boat Race Data
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:     # ← 手動実行対応
   schedule:
-    - cron: "0 23 * * *"
+    - cron: "0 23 * * *" # ← 毎日 JST 8:00 に自動実行（GitHubはUTC）
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a131d3e4b6  # v4.1.1 固定SHA
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@82c7e631bb3a9b7a8a26b1e77aac9e8ebc1125d2  # v5.1.0 固定SHA
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 lxml
 
       - name: Run fetch script
         run: |
@@ -24,8 +29,8 @@ jobs:
 
       - name: Commit and push data
         run: |
-          git config --local user.email "actions@github.com"
+          git config --local user.email "github-actions@github.com"
           git config --local user.name "github-actions[bot]"
           git add data/*.json
-          git commit -m "Auto update data" || echo "No changes"
+          git commit -m "Auto update data $(date '+%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push
