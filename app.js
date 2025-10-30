@@ -1,4 +1,4 @@
-// 競艇AI予想（GitHub Pages対応）
+// 競艇AI予想（GitHub Pages対応・data.json読み込み修正版）
 
 const aiStatus = document.getElementById("aiStatus");
 const venuesGrid = document.getElementById("venuesGrid");
@@ -10,8 +10,10 @@ dateLabel.textContent = today.toLocaleDateString("ja-JP", { year: "numeric", mon
 async function loadData() {
   aiStatus.textContent = "データ取得中...";
   try {
-    const res = await fetch("../data/data.json?nocache=" + Date.now());
+    // ✅ GitHub Pagesでの正しいパス
+    const res = await fetch("./data/data.json?nocache=" + Date.now());
     if (!res.ok) throw new Error("HTTPエラー");
+
     const data = await res.json();
 
     const cards = venuesGrid.querySelectorAll(".venue-card");
@@ -21,9 +23,12 @@ async function loadData() {
       if (venue) {
         card.querySelector(".status").textContent = venue.status_label;
         card.querySelector(".accuracy").textContent = `精度: ${venue.accuracy}%`;
+        card.classList.remove("open", "closed", "none");
         card.classList.add(venue.status);
       } else {
         card.querySelector(".status").textContent = "データなし";
+        card.querySelector(".accuracy").textContent = "";
+        card.classList.remove("open", "closed");
       }
     });
 
