@@ -2,37 +2,70 @@ import puppeteer from "puppeteer";
 import { VENUE_CODES } from "./venues.js";
 
 /**
- * venueName: 桐生, 戸田 など
- * return: [{raceTitle, entries:[{lane,name,st}], aiMain, aiSub}, ...]
+ * venueName（例："桐生"）を指定して、その場の出走表を取得
+ * @param {string} venueName
+ * @returns {Promise<Array>} races
  */
-export async function scrapeVenue(venueName){
+export async function scrapeVenue(venueName) {
   const code = VENUE_CODES[venueName];
-  if(!code) return [];
+  if (!code) {
+    console.warn(`⚠️ 無効な会場コード: ${venueName}`);
+    return [];
+  }
 
-  const url = `https://www.boatrace.jp/owpc/pc/race/racelist?rno=&jcd=${code}&hd=${new Date().toISOString().slice(0,10).replace(/-/g,"")}`;
-  const browser = await puppeteer.launch({args:["--no-sandbox","--disable-setuid-sandbox"]});
+  // 日付を YYYYMMDD 形式
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const hd = `${y}${m}${d}`;
+
+  const url = `https://www.boatrace.jp/owpc/pc/race/racelist?hd=${hd}&jcd=${code}`;
+
+  console.log(`▶︎ URL: ${url}`);
+  const browser = await puppeteer.launch({ args: ["--no-sandbox","--disable-setuid-sandbox"] });
   const page = await browser.newPage();
-  await page.goto(url, {waitUntil:"domcontentloaded"});
+  await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-  const races = await page.evaluate(()=>{
-    const raceEls = Array.from(document.querySelectorAll(".is-float-race")); // クラス名は公式サイトに合わせて変更
-    return raceEls.map((el, i)=>{
-      const entries = Array.from(el.querySelectorAll(".is-float-entry")).map(tr=>{
-        return {
-          lane: tr.querySelector(".lane")?.textContent.trim(),
-          name: tr.querySelector(".name")?.textContent.trim(),
-          st: tr.querySelector(".st")?.textContent.trim()
-        };
-      });
-      return {
-        raceTitle: `${i+1}R`,
-        entries,
-        aiMain: [], // 後でAI計算可能
-        aiSub: []
-      };
-    });
-  });
-
+  // ページ内で JS 実行完了後 HTML を取得
+  const html = await page.content();
   await browser.close();
+
+  // cheerio を使って解析する（軽量モード）でも良いですが、ここでは Puppeteer evaluate を利用
+  const races = await (async () => {
+    const page2 = await puppeteer.launch({ args: ["--no-sandbox","--disable-setuid-sandbox"] });
+    const p2 = await page2.newPage();
+    await p2.setContent(html);
+    const result = await p2.evaluate(() => {
+      const out = [];
+      // 12レース想定
+      const tables = document.querySelectorAll(".table1");
+      tables.forEach((tbl, i) => {
+        const raceTitle = `${i + 1}R`;
+        const entries = [];
+        const rows = tbl.querySelectorAll("tbody tr");
+        rows.forEach(tr => {
+          const tds = tr.querySelectorAll("td");
+          if (tds.length >= 8) {
+            entries.push({
+              lane: tds[0]?.innerText.trim(),
+              klass: tds[1]?.innerText.trim(),
+              name: tds[2]?.innerText.trim(),
+              st: tds[6]?.innerText.trim(),
+              course: tds[7]?.innerText.trim()
+            });
+          }
+        });
+        if (entries.length > 0) {
+          out.push({ raceTitle, entries, aiMain: [], aiSub: [], ranking: [], comments: [] });
+        }
+      });
+      return out;
+    });
+    await page2.close();
+    return result;
+  })();
+
+  console.log(`✅ 抽出：${venueName} → レース数 ${races.length}`);
   return races;
 }
