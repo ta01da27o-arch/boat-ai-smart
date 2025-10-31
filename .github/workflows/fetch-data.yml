@@ -1,0 +1,29 @@
+name: Fetch Boat Race Data
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+        working-directory: server
+      - name: Run fetchAllAI.js
+        run: npm run fetch
+        working-directory: server
+      - name: Commit updated data
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/data.json data/history.json
+          git commit -m "Auto update boat race data [skip ci]" || echo "No changes"
+          git push
