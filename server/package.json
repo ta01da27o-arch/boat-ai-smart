@@ -1,0 +1,11 @@
+{
+  "name": "boat-ai-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node fetchAll.js"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}
