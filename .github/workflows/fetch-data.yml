@@ -1,36 +1,44 @@
 name: Fetch Boat Race Data
 
+# 毎日 5:00 に自動実行（UTC 時間）
 on:
   schedule:
-    - cron: "0 22 * * *"   # 日本時間07:00（UTC22:00）に自動実行
-  workflow_dispatch:
+    - cron: "0 20 * * *" # JST 5:00 -> UTC 20:00 前日
+  workflow_dispatch: # 手動実行も可能
 
 jobs:
-  fetch:
+  fetch-data:
     runs-on: ubuntu-latest
-    steps:
-      - name: リポジトリ取得
-        uses: actions/checkout@v4
 
-      - name: Node セットアップ
-        uses: actions/setup-node@v4
+    steps:
+      # 1️⃣ リポジトリ取得
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Node.js セットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      - name: 依存関係インストール
+      # 3️⃣ モジュールインストール
+      - name: Install dependencies
         run: |
-          cd server
-          npm ci
+          npm install node-fetch@3 cheerio
 
-      - name: 出走表スクレイピング実行
-        run: |
-          cd server
-          npm start
+      # 4️⃣ ディレクトリ作成
+      - name: Ensure data folder
+        run: mkdir -p data
 
-      - name: 変更をコミット・プッシュ
+      # 5️⃣ スクレイピング＋AI予想生成
+      - name: Fetch and generate AI data
+        run: node server/fetchAllAI.js
+
+      # 6️⃣ コミット＆プッシュ（GitHub に自動保存）
+      - name: Commit and push data
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add ./data/data.json
-          git commit -m "Auto update race data [skip ci]" || echo "No changes"
-          git push
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/data.json data/history.json
+          git commit -m "Update data.json & history.json [Automated]"
+          git push origin main || echo "No changes to commit"
