@@ -1,0 +1,7 @@
+{
+  "name": "boat-ai-smart",
+  "type": "module",
+  "dependencies": {
+    "puppeteer": "^20.9.0"
+  }
+}
