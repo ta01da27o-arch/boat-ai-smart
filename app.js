@@ -7,28 +7,28 @@ const DATA_PATH = window.DATA_PATH || "./data/data.json";
 const HISTORY_PATH = window.HISTORY_PATH || "./data/history.json";
 
 // DOM取得
-const dateLabel = document.getElementById("dateLabel");
-const aiStatus = document.getElementById("aiStatus");
-const refreshBtn = document.getElementById("refreshBtn");
-const todayBtn = document.getElementById("todayBtn");
-const yesterdayBtn = document.getElementById("yesterdayBtn");
+const dateLabel      = document.getElementById("dateLabel");
+const aiStatus       = document.getElementById("aiStatus");
+const refreshBtn     = document.getElementById("refreshBtn");
+const todayBtn       = document.getElementById("todayBtn");
+const yesterdayBtn   = document.getElementById("yesterdayBtn");
 
 // 画面切替
-const screenVenues = document.getElementById("screen-venues");
-const screenRaces = document.getElementById("screen-races");
-const screenDetail = document.getElementById("screen-detail");
+const screenVenues   = document.getElementById("screen-venues");
+const screenRaces    = document.getElementById("screen-races");
+const screenDetail   = document.getElementById("screen-detail");
 
 // レース・出走データDOM
-const venuesGrid = document.getElementById("venuesGrid");
-const racesGrid = document.getElementById("racesGrid");
-const entryTable = document.getElementById("entryTable").querySelector("tbody");
-const aiMain = document.getElementById("aiMain").querySelector("tbody");
-const aiSub = document.getElementById("aiSub").querySelector("tbody");
-const commentTable = document.getElementById("commentTable").querySelector("tbody");
-const rankingTable = document.getElementById("rankingTable").querySelector("tbody");
-const resultTable = document.getElementById("resultTable").querySelector("tbody");
-const venueTitle = document.getElementById("venueTitle");
-const raceTitle = document.getElementById("raceTitle");
+const venuesGrid     = document.getElementById("venuesGrid");
+const racesGrid      = document.getElementById("racesGrid");
+const entryTable     = document.getElementById("entryTable").querySelector("tbody");
+const aiMain         = document.getElementById("aiMain").querySelector("tbody");
+const aiSub          = document.getElementById("aiSub").querySelector("tbody");
+const commentTable   = document.getElementById("commentTable").querySelector("tbody");
+const rankingTable   = document.getElementById("rankingTable").querySelector("tbody");
+const resultTable    = document.getElementById("resultTable").querySelector("tbody");
+const venueTitle     = document.getElementById("venueTitle");
+const raceTitle      = document.getElementById("raceTitle");
 
 // 日付管理
 let viewMode = "today"; // "today" or "yesterday"
@@ -41,8 +41,8 @@ let currentRace = null;
 // 初期化
 // ===============================
 init();
-function init() {
-  setToday();
+function init(){
+  setDateLabel();
   attachEvents();
   fetchAllData();
 }
@@ -50,12 +50,12 @@ function init() {
 // ===============================
 // イベント設定
 // ===============================
-function attachEvents() {
+function attachEvents(){
   todayBtn.addEventListener("click", () => {
     viewMode = "today";
     todayBtn.classList.add("active");
     yesterdayBtn.classList.remove("active");
-    setToday();
+    setDateLabel();
     renderVenues();
   });
 
@@ -63,12 +63,13 @@ function attachEvents() {
     viewMode = "yesterday";
     todayBtn.classList.remove("active");
     yesterdayBtn.classList.add("active");
-    setYesterday();
+    setDateLabel();
     renderVenues();
   });
 
   refreshBtn.addEventListener("click", () => {
-    aiStatus.textContent = "更新中...";
+    // 「更新」ボタン右側の文字を削除 → ここでは表示をクリア
+    aiStatus.textContent = "";
     fetchAllData();
   });
 
@@ -81,46 +82,47 @@ function attachEvents() {
 }
 
 // ===============================
-// 日付切替
+// 日付表示
 // ===============================
-function setToday() {
+function setDateLabel(){
   const d = new Date();
-  dateLabel.textContent = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-}
-function setYesterday() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  dateLabel.textContent = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  if(viewMode === "yesterday"){
+    d.setDate(d.getDate() - 1);
+  }
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth()+1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  dateLabel.textContent = `${yyyy}/${mm}/${dd}`;
 }
 
 // ===============================
 // データ取得
 // ===============================
-async function fetchAllData() {
+async function fetchAllData(){
   try {
     const [dataRes, histRes] = await Promise.all([
-      fetch(DATA_PATH + "?t=" + Date.now()),
-      fetch(HISTORY_PATH + "?t=" + Date.now())
+      fetch(DATA_PATH + "?t=" + Date.now(), { cache: "no-store" }),
+      fetch(HISTORY_PATH + "?t=" + Date.now(), { cache: "no-store" })
     ]);
-    if (!dataRes.ok) throw new Error("data.json取得失敗");
-    if (!histRes.ok) throw new Error("history.json取得失敗");
+    if (!dataRes.ok)  throw new Error("data.json取得失敗");
+    if (!histRes.ok)  throw new Error("history.json取得失敗");
 
-    allData = await dataRes.json();
+    allData     = await dataRes.json();
     historyData = await histRes.json();
 
-    aiStatus.textContent = "AI最新データ取得済";
+    aiStatus.textContent = "";  // 取得完了文字表示を削除
     renderVenues();
-  } catch (e) {
+  } catch(e){
     console.error(e);
     aiStatus.textContent = "データ取得エラー";
   }
 }
 
 // ===============================
-// 画面描画：24場一覧
+// 24場一覧描画
 // ===============================
-function renderVenues() {
-  if (!allData || !allData.venues) return;
+function renderVenues(){
+  if(!allData || !allData.venues) return;
   venuesGrid.innerHTML = "";
 
   allData.venues.forEach(v => {
@@ -129,7 +131,7 @@ function renderVenues() {
     card.innerHTML = `
       <div class="v-name">${v.name}</div>
       <div class="v-status ${v.status || "closed"}">${v.statusText || "ー"}</div>
-      <div class="v-accuracy">${v.hit_rate ? v.hit_rate + "%" : "--%"}</div>
+      <div class="v-accuracy">${v.hit_rate != null ? v.hit_rate + "%" : "--%"}</div>
     `;
     card.addEventListener("click", () => openVenue(v));
     venuesGrid.appendChild(card);
@@ -139,47 +141,46 @@ function renderVenues() {
 // ===============================
 // レース番号画面
 // ===============================
-function openVenue(venue) {
+function openVenue(venue){
   currentVenue = venue;
   venueTitle.textContent = venue.name;
   racesGrid.innerHTML = "";
 
-  const raceCount = 12;
-  for (let i = 1; i <= raceCount; i++) {
+  const raceCount = venue.races ? venue.races.length : 12;
+  for(let i=1; i<=raceCount; i++){
     const btn = document.createElement("div");
     btn.className = "race-btn";
     btn.textContent = `${i}R`;
     btn.addEventListener("click", () => openRace(i));
     racesGrid.appendChild(btn);
   }
-
   showScreen("races");
 }
 
 // ===============================
 // 出走表画面
 // ===============================
-function openRace(raceNo) {
+function openRace(raceNo){
   currentRace = raceNo;
   raceTitle.textContent = `${currentVenue.name} ${raceNo}R`;
 
-  const raceData = allData?.races?.[currentVenue.name]?.[raceNo];
-  const hist = historyData?.[currentVenue.name]?.[raceNo];
+  const raceData = allData.races?.[currentVenue.name]?.[raceNo];
+  const hist     = historyData.races?.[currentVenue.name]?.[raceNo];
 
-  entryTable.innerHTML = "";
-  aiMain.innerHTML = "";
-  aiSub.innerHTML = "";
+  entryTable.innerHTML   = "";
+  aiMain.innerHTML       = "";
+  aiSub.innerHTML        = "";
   commentTable.innerHTML = "";
   rankingTable.innerHTML = "";
-  resultTable.innerHTML = "";
+  resultTable.innerHTML  = "";
 
   // 出走表
-  if (raceData?.entries) {
-    raceData.entries.forEach((e, i) => {
+  if(raceData?.entries){
+    raceData.entries.forEach((e,i)=>{
       const tr = document.createElement("tr");
-      tr.className = `row-${i + 1}`;
+      tr.className = `row-${i+1}`;
       tr.innerHTML = `
-        <td>${e.lane}</td>
+        <td>${e.lane || "-"}</td>
         <td>
           <div class="entry-left">
             <div class="klass">${e.class || "-"}</div>
@@ -199,14 +200,14 @@ function openRace(raceNo) {
   }
 
   // AI本命・穴
-  if (raceData?.ai_main) {
+  if(raceData?.ai_main){
     raceData.ai_main.forEach(p => {
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.bet}</td><td>${p.prob}%</td>`;
       aiMain.appendChild(tr);
     });
   }
-  if (raceData?.ai_sub) {
+  if(raceData?.ai_sub){
     raceData.ai_sub.forEach(p => {
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${p.bet}</td><td>${p.prob}%</td>`;
@@ -215,17 +216,17 @@ function openRace(raceNo) {
   }
 
   // コメント
-  if (raceData?.comments) {
-    raceData.comments.forEach((c, i) => {
+  if(raceData?.comments){
+    raceData.comments.forEach((c,i)=>{
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${i + 1}</td><td>${c}</td>`;
+      tr.innerHTML = `<td>${i+1}</td><td>${c}</td>`;
       commentTable.appendChild(tr);
     });
   }
 
   // 順位予測
-  if (raceData?.ranking) {
-    raceData.ranking.forEach(r => {
+  if(raceData?.ranking){
+    raceData.ranking.forEach(r=>{
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${r.rank}</td><td>${r.lane}</td><td>${r.name}</td><td>${r.score}</td>`;
       rankingTable.appendChild(tr);
@@ -233,8 +234,8 @@ function openRace(raceNo) {
   }
 
   // 結果
-  if (hist?.result) {
-    hist.result.forEach(r => {
+  if(hist?.result){
+    hist.result.forEach(r=>{
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${r.rank}</td><td>${r.lane}</td><td>${r.name}</td><td>${r.st}</td>`;
       resultTable.appendChild(tr);
@@ -247,12 +248,12 @@ function openRace(raceNo) {
 // ===============================
 // 画面遷移制御
 // ===============================
-function showScreen(name) {
+function showScreen(name){
   screenVenues.classList.remove("active");
-  screenRaces.classList.remove("active");
+  screenRaces .classList.remove("active");
   screenDetail.classList.remove("active");
 
-  if (name === "venues") screenVenues.classList.add("active");
-  if (name === "races") screenRaces.classList.add("active");
-  if (name === "detail") screenDetail.classList.add("active");
+  if(name === "venues") screenVenues.classList.add("active");
+  if(name === "races" ) screenRaces .classList.add("active");
+  if(name === "detail") screenDetail.classList.add("active");
 }
