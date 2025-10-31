@@ -2,25 +2,35 @@ name: Fetch Boat Race Data
 
 on:
   schedule:
-    - cron: "0 23 * * *"   # 毎日08:00(JST)
+    - cron: "0 22 * * *"   # 日本時間07:00（UTC22:00）に自動実行
   workflow_dispatch:
 
 jobs:
-  update:
+  fetch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: リポジトリ取得
+        uses: actions/checkout@v4
+
+      - name: Node セットアップ
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.x"
-      - name: Generate data.json
+          node-version: 20
+
+      - name: 依存関係インストール
         run: |
-          python fetch_data.py
-      - name: Commit & Push
+          cd server
+          npm ci
+
+      - name: 出走表スクレイピング実行
+        run: |
+          cd server
+          npm start
+
+      - name: 変更をコミット・プッシュ
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/data.json data/history.json
-          git commit -m "Auto update: $(date '+%Y-%m-%d %H:%M')"
+          git add ./data/data.json
+          git commit -m "Auto update race data [skip ci]" || echo "No changes"
           git push
