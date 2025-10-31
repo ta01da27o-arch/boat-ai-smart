@@ -1,0 +1,13 @@
+{
+  "name": "boat-ai-smart",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "fetch": "node fetchAllAI.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "cheerio": "^1.0.0-rc.12",
+    "node-fetch": "^3.3.2"
+  }
+}
