@@ -1,16 +1,21 @@
 // ====================================================
-// 🚤 競艇AI予想アプリ（2025/10/31修正版）
+// 🚤 競艇AI予想アプリ（日付切替 + 結果自動更新対応）
 // ====================================================
 
-// ---- 要素取得 ----
+// DOM要素取得
 const aiStatus = document.getElementById("aiStatus");
 const venuesGrid = document.getElementById("venuesGrid");
 const dateLabel = document.getElementById("dateLabel");
+const screenVenues = document.getElementById("screen-venues");
+const screenRaces = document.getElementById("screen-races");
+const screenEntries = document.getElementById("screen-entries");
+const racesList = document.getElementById("racesList");
+const entriesList = document.getElementById("entriesList");
+const backBtn1 = document.getElementById("backVenues");
+const backBtn2 = document.getElementById("backRaces");
 
-// ---- 日付表示（YYYY/MM/DD）----
-const today = new Date();
-const formatted = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}`;
-dateLabel.textContent = formatted;
+let selectedVenue = null;
+let selectedDate = new Date();
 
 // ====================================================
 // 🌏 全国24場リスト（固定）
@@ -42,34 +47,48 @@ function renderVenueGrid() {
 }
 
 // ====================================================
-// 📦 JSONデータ取得処理
+// 📅 日付処理
+// ====================================================
+function formatDate(date) {
+  return date.toLocaleDateString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function getDateFileName(date) {
+  const y = date.getFullYear();
+  const m = ("0" + (date.getMonth() + 1)).slice(-2);
+  const d = ("0" + date.getDate()).slice(-2);
+  return `${y}${m}${d}`;
+}
+
+function updateDateLabel() {
+  dateLabel.textContent = formatDate(selectedDate);
+}
+
+document.getElementById("prevBtn").addEventListener("click", () => {
+  selectedDate.setDate(selectedDate.getDate() - 1);
+  updateDateLabel();
+  loadData();
+});
+
+document.getElementById("todayBtn").addEventListener("click", () => {
+  selectedDate = new Date();
+  updateDateLabel();
+  loadData();
+});
+
+// ====================================================
+// 📦 JSONデータ取得処理（日付別）
 // ====================================================
 async function loadData() {
-  aiStatus.textContent = "データ取得中...";
+  aiStatus.textContent = "AI学習中...";
   try {
-    // JSONパス自動判定
-    const pathOptions = [
-      "./data/data.json",
-      "../data/data.json",
-      "/data/data.json"
-    ];
-
-    let data = null;
-    for (const path of pathOptions) {
-      try {
-        const res = await fetch(`${path}?nocache=${Date.now()}`);
-        if (res.ok) {
-          data = await res.json();
-          break;
-        }
-      } catch (_) { /* 試行を続ける */ }
-    }
-
-    if (!data) throw new Error("data.json が読み込めませんでした");
-
+    const fileName = `data_${getDateFileName(selectedDate)}.json`;
+    const path = window.DATA_PATH || `./data/${fileName}`;
+    const res = await fetch(`${path}?nocache=${Date.now()}`);
+    if (!res.ok) throw new Error("HTTPエラー");
+    const data = await res.json();
     updateVenueStatus(data);
     aiStatus.textContent = "データ取得完了 ✅";
-
   } catch (e) {
     console.error(e);
     aiStatus.textContent = "データ取得失敗 ❌";
@@ -77,38 +96,88 @@ async function loadData() {
 }
 
 // ====================================================
-// 🧩 データ反映処理
+// 🧩 反映処理（開催中・的中率など）
 // ====================================================
 function updateVenueStatus(data) {
   const cards = venuesGrid.querySelectorAll(".venue-card");
   cards.forEach(card => {
     const name = card.dataset.name;
-    const venue = data.venues?.find(v => v.name === name);
+    const venue = data.venues.find(v => v.name === name);
     const statusEl = card.querySelector(".v-status");
     const accEl = card.querySelector(".v-accuracy");
 
     if (venue) {
-      statusEl.textContent = venue.status_label || "-";
-      accEl.textContent = venue.accuracy ? `精度 ${venue.accuracy}%` : "";
-      statusEl.classList.remove("active", "closed", "finished");
-      if (venue.status === "open") statusEl.classList.add("active");
-      else if (venue.status === "closed") statusEl.classList.add("closed");
-      else if (venue.status === "finished") statusEl.classList.add("finished");
+      statusEl.textContent = venue.status_label || "ー";
+      accEl.textContent = venue.accuracy ? `当地的中率 ${venue.accuracy}%` : "";
+      card.classList.remove("active");
+      if (venue.status === "open") {
+        statusEl.classList.add("active");
+        card.addEventListener("click", () => openRaceScreen(venue));
+      }
     } else {
       statusEl.textContent = "ー";
       accEl.textContent = "";
-      statusEl.classList.remove("active", "closed", "finished");
     }
   });
 }
 
 // ====================================================
-// 🔄 イベント設定
+// 🏁 開催中 → レース番号画面へ遷移
 // ====================================================
-document.getElementById("refreshBtn").addEventListener("click", loadData);
+function openRaceScreen(venue) {
+  selectedVenue = venue;
+  screenVenues.style.display = "none";
+  screenRaces.style.display = "block";
+  racesList.innerHTML = "";
+
+  for (const raceNo in venue.races) {
+    const raceBtn = document.createElement("div");
+    raceBtn.className = "race-item";
+    raceBtn.textContent = `${raceNo}R`;
+    raceBtn.addEventListener("click", () => openEntriesScreen(venue.races[raceNo], raceNo));
+    racesList.appendChild(raceBtn);
+  }
+}
+
+// ====================================================
+// 🧾 出走表画面へ遷移
+// ====================================================
+function openEntriesScreen(raceData, raceNo) {
+  screenRaces.style.display = "none";
+  screenEntries.style.display = "block";
+  entriesList.innerHTML = `
+    <h3>${selectedVenue.name} ${raceNo}R 出走表</h3>
+  `;
+
+  raceData.entries.forEach(e => {
+    const row = document.createElement("div");
+    row.className = "entry-row";
+    row.innerHTML = `
+      <div class="no">${e.no}</div>
+      <div class="name">${e.name}</div>
+      <div class="st">${e.st}</div>
+      <div class="eval">${e.eval}</div>
+    `;
+    entriesList.appendChild(row);
+  });
+}
+
+// ====================================================
+// 🔙 戻る機能
+// ====================================================
+backBtn1.addEventListener("click", () => {
+  screenRaces.style.display = "none";
+  screenVenues.style.display = "block";
+});
+
+backBtn2.addEventListener("click", () => {
+  screenEntries.style.display = "none";
+  screenRaces.style.display = "block";
+});
 
 // ====================================================
 // 🚀 初期化
 // ====================================================
 renderVenueGrid();
+updateDateLabel();
 loadData();
