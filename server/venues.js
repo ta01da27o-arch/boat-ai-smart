@@ -1,7 +1,7 @@
 // server/venues.js
 // ボートレース全場（JCDコード付き）
 
-export const venues = [
+export const VENUES = [
   { id: "01", name: "桐生" },
   { id: "02", name: "戸田" },
   { id: "03", name: "江戸川" },
