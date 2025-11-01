@@ -5,8 +5,14 @@ import { VENUES } from "./venues.js";
 import { scrapeRaceListAndEntries } from "./scrape.js";
 
 const __dirname = path.resolve();
-const dataPath = path.join(__dirname, "data", "data.json");
-const historyPath = path.join(__dirname, "data", "history.json");
+const dataDir = path.join(__dirname, "server", "data");
+const dataPath = path.join(dataDir, "data.json");
+const historyPath = path.join(dataDir, "history.json");
+
+// ✅ フォルダが存在しなければ作成
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
 async function main() {
   const date = new Date();
@@ -25,10 +31,11 @@ async function main() {
     }
   }
 
+  // ✅ JSON書き出し
   fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
   console.log(`✅ data.json saved: ${dataPath}`);
 
-  // history.json 更新
+  // ✅ 履歴管理
   let history = [];
   if (fs.existsSync(historyPath)) {
     try {
