@@ -1,7 +1,9 @@
 {
-  "name": "boat-ai-smart",
   "type": "module",
   "dependencies": {
-    "puppeteer": "^20.9.0"
+    "puppeteer": "^23.7.0"
+  },
+  "scripts": {
+    "start": "node fetchAllAI.js"
   }
 }

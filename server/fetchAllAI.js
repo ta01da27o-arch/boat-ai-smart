@@ -1,46 +1,54 @@
 // server/fetchAllAI.js
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-import { scrapeRaceData } from "./scrape.js";
+import { VENUES } from "./venues.js";
+import { scrapeRaceListAndEntries } from "./scrape.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.resolve();
+const dataPath = path.join(__dirname, "data", "data.json");
+const historyPath = path.join(__dirname, "data", "history.json");
 
-const DATA_DIR = path.join(__dirname, "../data");
-const DATA_PATH = path.join(DATA_DIR, "data.json");
-const HISTORY_PATH = path.join(DATA_DIR, "history.json");
+async function main() {
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+  const allData = { updated: new Date().toISOString(), venues: {} };
 
-const today = new Date();
-const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
-console.log(`📅 Fetching Boat Race Data for ${dateStr}`);
-
-(async () => {
-  try {
-    const raceData = await scrapeRaceData(dateStr);
-
-    // data.json保存
-    const dataJson = { updated: new Date().toISOString(), venues: raceData };
-    fs.writeFileSync(DATA_PATH, JSON.stringify(dataJson, null, 2));
-    console.log(`✅ data.json saved: ${DATA_PATH}`);
-
-    // history.json更新
-    let history = [];
-    if (fs.existsSync(HISTORY_PATH)) {
-      const content = fs.readFileSync(HISTORY_PATH, "utf-8");
-      try {
-        const parsed = JSON.parse(content);
-        history = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        history = [];
-      }
+  for (const v of VENUES) {
+    console.log(`■ FETCH：${v.name}`);
+    try {
+      const list = await scrapeRaceListAndEntries(v.code, dateStr);
+      console.log(`✅ 抽出：${v.name} → レース数 ${list.length}`);
+      allData.venues[v.name] = list;
+    } catch (e) {
+      console.error(`❌ ${v.name} 取得失敗: ${e.message}`);
+      allData.venues[v.name] = [];
     }
-
-    history.unshift({ date: dateStr, summary: Object.keys(raceData) });
-    fs.writeFileSync(HISTORY_PATH, JSON.stringify(history.slice(0, 30), null, 2));
-    console.log(`✅ history.json updated: ${HISTORY_PATH}`);
-  } catch (e) {
-    console.error("❌ Fetch failed:", e);
-    process.exit(1);
   }
-})();
+
+  fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
+  console.log(`✅ data.json saved: ${dataPath}`);
+
+  // history.json 更新
+  let history = [];
+  if (fs.existsSync(historyPath)) {
+    try {
+      history = JSON.parse(fs.readFileSync(historyPath, "utf8"));
+      if (!Array.isArray(history)) history = [];
+    } catch {
+      history = [];
+    }
+  }
+
+  history.unshift({
+    date: dateStr,
+    summary: VENUES.map(v => v.name)
+  });
+
+  fs.writeFileSync(historyPath, JSON.stringify(history.slice(0, 30), null, 2));
+  console.log(`✅ history.json updated: ${historyPath}`);
+}
+
+main().catch(err => {
+  console.error("❌ Fetch failed:", err);
+  process.exit(1);
+});
