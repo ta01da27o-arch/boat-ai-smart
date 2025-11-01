@@ -1,48 +1,39 @@
+// server/fetchAllAI.js
 import fs from "fs";
 import path from "path";
-import { VENUES } from "./venues.js";
-import { scrapeVenue } from "./scrape.js";
+import { fileURLToPath } from "url";
+import { scrapeRaceData } from "./scrape.js";
 
-const DATA_PATH = path.resolve("./data/data.json");
-const HISTORY_PATH = path.resolve("./data/history.json");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-async function fetchAll() {
-  const data = { venues: {} };
+const DATA_DIR = path.join(__dirname, "../data");
+const DATA_PATH = path.join(DATA_DIR, "data.json");
+const HISTORY_PATH = path.join(DATA_DIR, "history.json");
 
-  for (const v of VENUES) {
-    try {
-      console.log(`■ FETCH：${v}`);
-      const races = await scrapeVenue(v);
-      data.venues[v] = races;
-    } catch (err) {
-      console.error(`❌ ERROR：${v}`, err);
-      data.venues[v] = [];
+const today = new Date();
+const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+console.log(`📅 Fetching Boat Race Data for ${dateStr}`);
+
+(async () => {
+  try {
+    const raceData = await scrapeRaceData(dateStr);
+
+    // data.json
+    const dataJson = { updated: new Date().toISOString(), venues: raceData };
+    fs.writeFileSync(DATA_PATH, JSON.stringify(dataJson, null, 2));
+    console.log(`✅ data.json saved: ${DATA_PATH}`);
+
+    // history.json (追記モード)
+    let history = [];
+    if (fs.existsSync(HISTORY_PATH)) {
+      history = JSON.parse(fs.readFileSync(HISTORY_PATH, "utf-8"));
     }
+    history.unshift({ date: dateStr, summary: Object.keys(raceData) });
+    fs.writeFileSync(HISTORY_PATH, JSON.stringify(history.slice(0, 30), null, 2));
+    console.log(`✅ history.json updated: ${HISTORY_PATH}`);
+  } catch (e) {
+    console.error("❌ Fetch failed:", e);
+    process.exit(1);
   }
-
-  fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
-  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2), "utf-8");
-  console.log(`✅ 保存：${DATA_PATH}`);
-
-  // 最新レース結果（例として各会場1Rの上位3を抜粋）
-  let recent = [];
-  for (const v of VENUES) {
-    const r0 = data.venues[v]?.[0];
-    if (r0 && r0.entries) {
-      recent = recent.concat(
-        r0.entries.slice(0, 3).map((e, idx) => ({
-          rank: idx + 1,
-          lane: e.lane,
-          name: e.name,
-          st: e.st
-        }))
-      );
-    }
-  }
-
-  fs.mkdirSync(path.dirname(HISTORY_PATH), { recursive: true });
-  fs.writeFileSync(HISTORY_PATH, JSON.stringify({ recent }, null, 2), "utf-8");
-  console.log(`✅ 保存：${HISTORY_PATH}`);
-}
-
-fetchAll();
+})();

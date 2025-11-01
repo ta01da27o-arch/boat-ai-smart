@@ -1,54 +1,37 @@
 // server/scrape.js
 import puppeteer from "puppeteer";
-import fs from "fs";
-import { venues } from "./venues.js";
+import { VENUES } from "./venues.js";
 
-const today = new Date();
-const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, "");
+export async function scrapeRaceData(dateStr) {
+  const results = {};
 
-export async function scrapeAllRaces() {
-  const browser = await puppeteer.launch({
-    headless: "new", // 新しいHeadlessモード
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox"] });
+  const page = await browser.newPage();
 
-  const allData = [];
-
-  for (const v of venues) {
-    const url = `https://www.boatrace.jp/owpc/pc/race/racelist?hd=${yyyymmdd}&jcd=${v.id}`;
-    console.log(`■ FETCH：${v.name}`);
+  for (const { id, name } of VENUES) {
+    console.log(`■ FETCH：${name}`);
+    const url = `https://www.boatrace.jp/owpc/pc/race/racelist?hd=${dateStr}&jcd=${id}`;
     console.log(`▶︎ URL: ${url}`);
 
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 0 });
+    try {
+      await page.goto(url, { waitUntil: "networkidle2", timeout: 40000 });
+      const html = await page.content();
 
-    // ✅ 新しいHTML構造に対応
-    const races = await page.$$eval(".table1 tbody tr", (rows) => {
-      return rows
-        .map((row) => {
-          const raceNum = row.querySelector("th a")?.textContent?.trim();
-          const title = row.querySelector("td.is-fs12")?.textContent?.trim();
-          if (!raceNum || !title) return null;
-          return { raceNum, title };
+      const raceData = await page.$$eval(".table1 tbody tr", rows =>
+        rows.map(row => {
+          const cols = Array.from(row.querySelectorAll("td")).map(td => td.textContent.trim());
+          return cols.join(" | ");
         })
-        .filter(Boolean);
-    });
+      );
 
-    console.log(`✅ 抽出：${v.name} → レース数 ${races.length}`);
-    allData.push({ venue: v.name, races });
-
-    await page.close();
+      console.log(`✅ 抽出：${name} → レース数 ${raceData.length}`);
+      results[name] = raceData;
+    } catch (err) {
+      console.error(`❌ ${name} failed:`, err.message);
+      results[name] = [];
+    }
   }
 
   await browser.close();
-
-  // 保存
-  const path = "./data/data.json";
-  fs.writeFileSync(path, JSON.stringify(allData, null, 2));
-  console.log(`💾 保存完了: ${path}`);
-}
-
-// 実行
-if (import.meta.url === `file://${process.argv[1]}`) {
-  scrapeAllRaces();
+  return results;
 }

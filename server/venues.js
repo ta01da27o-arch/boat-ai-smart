@@ -1,6 +1,4 @@
 // server/venues.js
-// ボートレース全場（JCDコード付き）
-
 export const VENUES = [
   { id: "01", name: "桐生" },
   { id: "02", name: "戸田" },
@@ -25,5 +23,5 @@ export const VENUES = [
   { id: "21", name: "芦屋" },
   { id: "22", name: "福岡" },
   { id: "23", name: "唐津" },
-  { id: "24", name: "大村" },
+  { id: "24", name: "大村" }
 ];
