@@ -9,10 +9,7 @@ const dataDir = path.join(__dirname, "server", "data");
 const dataPath = path.join(dataDir, "data.json");
 const historyPath = path.join(dataDir, "history.json");
 
-// ✅ フォルダが存在しなければ作成
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 async function main() {
   const date = new Date();
@@ -31,11 +28,9 @@ async function main() {
     }
   }
 
-  // ✅ JSON書き出し
   fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
   console.log(`✅ data.json saved: ${dataPath}`);
 
-  // ✅ 履歴管理
   let history = [];
   if (fs.existsSync(historyPath)) {
     try {

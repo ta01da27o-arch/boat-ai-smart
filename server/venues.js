@@ -1,3 +1,4 @@
+// server/venues.js
 export const VENUES = [
   { name: "桐生", code: "01" },
   { name: "戸田", code: "02" },

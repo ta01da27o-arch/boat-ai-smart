@@ -1,9 +1,8 @@
 {
+  "name": "boat-ai-fetch",
+  "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "puppeteer": "^23.7.0"
-  },
-  "scripts": {
-    "start": "node fetchAllAI.js"
+    "puppeteer": "^23.6.0"
   }
 }
