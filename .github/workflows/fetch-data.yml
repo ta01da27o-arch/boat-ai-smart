@@ -1,9 +1,9 @@
-name: Fetch Boat Data
+name: Fetch Boat Race Data
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  # 毎時0分実行（任意）
+    - cron: '0 * * * *'
 
 jobs:
   fetch:
@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd server
-          npm install
+          npm install puppeteer
 
       - name: Run fetch script
         run: |
@@ -31,6 +31,6 @@ jobs:
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add server/data/*.json
-          git commit -m "Update race data [skip ci]" || echo "No changes"
-          git push
+          git add server/data/*.json || echo "No JSON files"
+          git commit -m "Update race data [skip ci]" || echo "No changes to commit"
+          git push || echo "No push"
