@@ -1,14 +1,19 @@
 // server/fetchAllAI.js
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { VENUES } from "./venues.js";
 import { scrapeRaceListAndEntries } from "./scrape.js";
 
-const __dirname = path.resolve();
-const dataDir = path.join(__dirname, "server", "data");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 正しいパス設定（server/data）
+const dataDir = path.join(__dirname, "data");
 const dataPath = path.join(dataDir, "data.json");
 const historyPath = path.join(dataDir, "history.json");
 
+// ディレクトリが存在しない場合は作成
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 async function main() {
@@ -28,6 +33,7 @@ async function main() {
     }
   }
 
+  // 保存処理
   fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
   console.log(`✅ data.json saved: ${dataPath}`);
 
