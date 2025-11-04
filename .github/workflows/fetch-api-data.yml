@@ -1,0 +1,32 @@
+name: Fetch API Data (Free Source)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *" # JST12:00頃に自動実行
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install node-fetch@3
+
+      - name: Fetch data from external API
+        run: node server/fetchApiPrograms.js
+
+      - name: Commit and Push updated data
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add server/data/*.json
+          git commit -m "🔄 Update race data via external API" || echo "No changes"
+          git push
