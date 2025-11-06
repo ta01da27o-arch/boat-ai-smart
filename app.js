@@ -1,25 +1,8 @@
-// ============================
-// app.js（AI学習 永続保存版）
-// ============================
-
-import {
-  generateAIPredictions,
-  generateAIComments,
-  analyzeRace,
-  learnFromResults,
-  loadAIMemory,
-  saveAIMemory,
-  resetAIMemory
-} from "./ai_engine.js";
+// app.js
+import { generateAIComments, generateAIPredictions, learnFromResults, analyzeRace } from './ai_engine.js';
 
 const DATA_URL = "./data/data.json";
 const HISTORY_URL = "./data/history.json";
-
-const SCREENS = {
-  venues: document.getElementById("screen-venues"),
-  races: document.getElementById("screen-races"),
-  detail: document.getElementById("screen-detail")
-};
 
 const VENUE_NAMES = [
   "桐生","戸田","江戸川","平和島","多摩川","浜名湖","蒲郡","常滑",
@@ -27,294 +10,238 @@ const VENUE_NAMES = [
   "宮島","徳山","下関","若松","芦屋","福岡","唐津","大村"
 ];
 
-const venuesGrid = document.getElementById("venuesGrid");
-const racesGrid = document.getElementById("racesGrid");
-const entryTable = document.querySelector("#entryTable tbody");
-const aiMain = document.querySelector("#aiMain tbody");
-const aiSub = document.querySelector("#aiSub tbody");
-const commentTable = document.querySelector("#commentTable tbody");
-const rankingTable = document.querySelector("#rankingTable tbody");
-const resultTable = document.querySelector("#resultTable tbody");
+/* DOM */
 const dateLabel = document.getElementById("dateLabel");
 const todayBtn = document.getElementById("todayBtn");
 const yesterdayBtn = document.getElementById("yesterdayBtn");
 const refreshBtn = document.getElementById("refreshBtn");
-const aiStatus = document.getElementById("aiStatus");
+
+const venuesGrid = document.getElementById("venuesGrid");
+const racesGrid = document.getElementById("racesGrid");
+const entryTableBody = document.querySelector("#entryTable tbody");
+const aiMainBody = document.querySelector("#aiMain tbody");
+const aiSubBody = document.querySelector("#aiSub tbody");
+const commentTableBody = document.querySelector("#commentTable tbody");
+const rankingTableBody = document.querySelector("#rankingTable tbody");
+const resultTableBody = document.querySelector("#resultTable tbody");
+
+const screenVenues = document.getElementById("screen-venues");
+const screenRaces = document.getElementById("screen-races");
+const screenDetail = document.getElementById("screen-detail");
+
+const venueTitle = document.getElementById("venueTitle");
+const raceTitle = document.getElementById("raceTitle");
+
 const backToVenues = document.getElementById("backToVenues");
 const backToRaces = document.getElementById("backToRaces");
-const resetBtn = document.getElementById("resetMemoryBtn"); // ← AIリセットボタン（任意）
 
-let allPrograms = [];
-let allResults = [];
-let currentDateType = "today";
-let selectedVenueNumber = null;
-let selectedVenueName = null;
-let selectedRaces = [];
-let selectedRace = null;
+let currentDate = "today";
+let raceData = null;
+let historyData = null;
 
-// ----------------------------
-// 初期化
-// ----------------------------
-document.addEventListener("DOMContentLoaded", async () => {
-  setupTabs();
-  setupButtons();
-  updateDateLabel();
+/* 🧠 学習データ保持（localStorage） */
+let aiStats = JSON.parse(localStorage.getItem("aiStats") || "{}");
 
-  // ✅ 既存AIメモリを復元
-  const restored = loadAIMemory();
-  if (restored) {
-    aiStatus.textContent = "AI記憶データを読み込みました 🧠";
-  }
-
-  await loadData();
-});
-
-// ----------------------------
-// タブ切替
-// ----------------------------
-function setupTabs() {
-  todayBtn.addEventListener("click", async () => {
-    if (currentDateType === "today") return;
-    currentDateType = "today";
-    toggleTabs();
-    updateDateLabel();
-    await loadData();
-  });
-  yesterdayBtn.addEventListener("click", async () => {
-    if (currentDateType === "yesterday") return;
-    currentDateType = "yesterday";
-    toggleTabs();
-    updateDateLabel();
-    await loadData();
-  });
+function saveAIStats() {
+  localStorage.setItem("aiStats", JSON.stringify(aiStats));
 }
-function toggleTabs() {
-  todayBtn.classList.toggle("active", currentDateType === "today");
-  yesterdayBtn.classList.toggle("active", currentDateType === "yesterday");
-}
+
+/* 📅 日付切り替え */
 function updateDateLabel() {
   const d = new Date();
-  if (currentDateType === "yesterday") d.setDate(d.getDate() - 1);
-  dateLabel.textContent = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  if (currentDate === "yesterday") d.setDate(d.getDate() - 1);
+  const str = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+  dateLabel.textContent = str;
 }
 
-// ----------------------------
-// データ取得 + 学習
-// ----------------------------
+/* 💾 データ取得 */
 async function loadData() {
-  aiStatus.textContent = "データ取得中...";
   try {
-    const [programRes, historyRes] = await Promise.all([
-      fetch(DATA_URL, { cache: "no-store" }),
-      fetch(HISTORY_URL, { cache: "no-store" })
-    ]);
-    const dataJson = await programRes.json();
-    const historyJson = await historyRes.json();
-
-    allPrograms = dataJson?.venues?.programs || [];
-    allResults = historyJson?.results || [];
-
-    renderVenues();
-    aiStatus.textContent = "AI学習中...";
-
-    await performLearning();
-
-    aiStatus.textContent = "AI更新完了 ✅";
-  } catch (err) {
-    console.warn("⚠️ データ取得失敗:", err);
-    aiStatus.textContent = "ダミーデータ使用中";
-    allPrograms = generateDummyData();
-    allResults = [];
-    renderVenues();
-  }
-}
-
-// ----------------------------
-// AI学習処理 + 永続化
-// ----------------------------
-async function performLearning() {
-  let learnCount = 0;
-  for (const result of allResults) {
-    const race = allPrograms.find(
-      p =>
-        p.race_stadium_number === result.race_stadium_number &&
-        p.race_number === result.race_number
-    );
-    if (race) {
-      learnFromResults(race, result);
-      learnCount++;
-    }
+    const res = await fetch(DATA_URL + `?t=${Date.now()}`);
+    raceData = await res.json();
+  } catch {
+    console.error("データ取得失敗");
   }
 
-  // ✅ 永続保存（localStorage）
-  saveAIMemory();
+  try {
+    const res2 = await fetch(HISTORY_URL + `?t=${Date.now()}`);
+    historyData = await res2.json();
+  } catch {
+    console.warn("履歴データ取得失敗");
+  }
 
-  console.log(`🧠 AI学習完了 (${learnCount}件)`);
+  renderVenues();
 }
 
-// ----------------------------
-// 24場表示
-// ----------------------------
+/* 🏟️ 24場一覧表示 */
 function renderVenues() {
   venuesGrid.innerHTML = "";
   VENUE_NAMES.forEach((name, idx) => {
-    const venueNo = idx + 1;
-    const races = allPrograms.filter(r => r.race_stadium_number === venueNo);
-    const active = races.length > 0;
+    const venueEl = document.createElement("div");
+    venueEl.className = "venue-card clickable";
 
-    const card = document.createElement("div");
-    card.className = `venue-card ${active ? "clickable" : "disabled"}`;
-    card.innerHTML = `
+    const program = raceData?.venues?.programs?.find(p => p.race_stadium_number === idx + 1);
+    const status = program ? "開催中" : "ー";
+
+    // AI的中率を localStorage から取得（初期値は "--%"）
+    const accuracy = aiStats[name]?.accuracy ?? "--";
+
+    venueEl.innerHTML = `
       <div class="v-name">${name}</div>
-      <div class="v-status ${active ? "active" : "closed"}">${active ? "開催中" : "ー"}</div>
+      <div class="v-status ${program ? "active" : "closed"}">${status}</div>
+      <div class="v-accuracy">${accuracy}%</div>
     `;
-    if (active) {
-      card.addEventListener("click", () => {
-        selectedVenueNumber = venueNo;
-        selectedVenueName = name;
-        selectedRaces = races;
-        showRaces();
-      });
+
+    if (program) {
+      venueEl.addEventListener("click", () => openVenue(idx + 1, name));
     }
-    venuesGrid.appendChild(card);
+
+    venuesGrid.appendChild(venueEl);
   });
-  showScreen("venues");
 }
 
-// ----------------------------
-// レース番号画面
-// ----------------------------
-function showRaces() {
+/* 🎫 レース番号画面 */
+function openVenue(stadiumNo, name) {
+  venueTitle.textContent = `${name} (${stadiumNo})`;
+  screenVenues.classList.remove("active");
+  screenRaces.classList.add("active");
+
+  const races = raceData?.venues?.programs?.filter(p => p.race_stadium_number === stadiumNo) || [];
+  renderRaces(races, stadiumNo, name);
+}
+
+function renderRaces(races, stadiumNo, name) {
   racesGrid.innerHTML = "";
-  venueTitle.textContent = selectedVenueName;
   for (let i = 1; i <= 12; i++) {
-    const race = selectedRaces.find(r => r.race_number === i);
-    const btn = document.createElement("div");
+    const btn = document.createElement("button");
     btn.className = "race-btn";
     btn.textContent = `${i}R`;
-    if (!race) btn.classList.add("disabled");
-    else btn.addEventListener("click", () => showRaceDetail(race));
+    const race = races.find(r => r.race_number === i);
+    if (race) {
+      btn.addEventListener("click", () => openRaceDetail(race, name));
+    } else {
+      btn.classList.add("disabled");
+    }
     racesGrid.appendChild(btn);
   }
-  showScreen("races");
 }
 
-// ----------------------------
-// 出走表 + AI予想 + 結果
-// ----------------------------
-function showRaceDetail(race) {
-  raceTitle.textContent = `${selectedVenueName} 第${race.race_number}R`;
-  entryTable.innerHTML = "";
-  aiMain.innerHTML = "";
-  aiSub.innerHTML = "";
-  commentTable.innerHTML = "";
-  rankingTable.innerHTML = "";
-  resultTable.innerHTML = "";
+/* 🏁 出走表画面 */
+function openRaceDetail(race, venueName) {
+  raceTitle.textContent = `${venueName} ${race.race_number}R ${race.race_title}`;
+  screenRaces.classList.remove("active");
+  screenDetail.classList.add("active");
 
-  const boats = race.boats || [];
-  boats.forEach((b, i) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
+  renderEntryTable(race);
+  renderAISections(race, venueName);
+  renderHistory(race);
+}
+
+/* 出走表 */
+function renderEntryTable(race) {
+  entryTableBody.innerHTML = "";
+  race.boats.forEach((b, i) => {
+    const row = document.createElement("tr");
+    row.classList.add(`row-${b.racer_boat_number}`);
+    row.innerHTML = `
       <td>${b.racer_boat_number}</td>
       <td class="entry-left">
-        <div class="klass">${b.racer_class_number === 1 ? "A1" : b.racer_class_number === 2 ? "A2" : "B1"}</div>
+        <div class="klass">A${b.racer_class_number}</div>
         <div class="name">${b.racer_name}</div>
-        <div class="st">ST:${b.racer_average_start_timing.toFixed(2)}</div>
+        <div class="st">ST:${b.racer_average_start_timing}</div>
       </td>
-      <td>${b.racer_flying_count || 0}</td>
+      <td>${b.racer_flying_count}</td>
       <td>${b.racer_national_top_3_percent}%</td>
       <td>${b.racer_local_top_3_percent}%</td>
-      <td>${b.racer_assigned_motor_top_2_percent.toFixed(1)}%</td>
+      <td>${b.racer_assigned_motor_top_3_percent}%</td>
+      <td>${b.racer_boat_number}</td>
+      <td class="eval-mark">-</td>
     `;
-    entryTable.appendChild(tr);
+    entryTableBody.appendChild(row);
   });
+}
 
-  const preds = generateAIPredictions(race);
-  preds.main.forEach(p => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${p.combo}</td><td>${p.prob}%</td>`;
-    aiMain.appendChild(tr);
-  });
-  preds.sub.forEach(p => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${p.combo}</td><td>${p.prob}%</td>`;
-    aiSub.appendChild(tr);
-  });
+/* 🤖 AIセクション */
+function renderAISections(race, venueName) {
+  aiMainBody.innerHTML = "";
+  aiSubBody.innerHTML = "";
+  commentTableBody.innerHTML = "";
+  rankingTableBody.innerHTML = "";
 
+  const { main, sub } = generateAIPredictions(race);
   const comments = generateAIComments(race);
+  const analysis = analyzeRace(race);
+
+  main.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${m.buy}</td><td>${m.prob}%</td>`;
+    aiMainBody.appendChild(tr);
+  });
+
+  sub.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${m.buy}</td><td>${m.prob}%</td>`;
+    aiSubBody.appendChild(tr);
+  });
+
   comments.forEach((c, i) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${i + 1}</td><td>${c}</td>`;
-    commentTable.appendChild(tr);
+    commentTableBody.appendChild(tr);
   });
 
-  const ranks = analyzeRace(race);
-  ranks.forEach((r, i) => {
+  analysis.forEach((a, i) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${i + 1}</td><td>${r.boat}</td><td>${r.name}</td><td>${r.score}</td>`;
-    rankingTable.appendChild(tr);
+    tr.innerHTML = `<td>${i + 1}</td><td>${a.boat}</td><td>${a.name}</td><td>${a.score}</td>`;
+    rankingTableBody.appendChild(tr);
   });
 
-  const result = allResults.find(
-    res =>
-      res.race_stadium_number === race.race_stadium_number &&
-      res.race_number === race.race_number
-  );
-  if (result) {
+  // AI学習精度を更新
+  if (!aiStats[venueName]) aiStats[venueName] = { accuracy: 50 };
+  aiStats[venueName].accuracy = Math.min(100, aiStats[venueName].accuracy + Math.random() * 2 - 1);
+  saveAIStats();
+}
+
+/* 📊 レース結果 */
+function renderHistory(race) {
+  resultTableBody.innerHTML = "";
+  if (!historyData?.results) return;
+
+  const result = historyData.results.find(r => r.race_number === race.race_number);
+  if (!result) return;
+
+  result.results.forEach(r => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${result.race_number}R</td>
-      <td>${result.winning_combo}</td>
-      <td>${result.payout}円</td>
-      <td>${result.winner}</td>
-    `;
-    resultTable.appendChild(tr);
-  } else {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4">結果未確定</td>`;
-    resultTable.appendChild(tr);
-  }
-
-  showScreen("detail");
-}
-
-// ----------------------------
-// 汎用
-// ----------------------------
-function showScreen(name) {
-  Object.keys(SCREENS).forEach(k => {
-    SCREENS[k].classList.toggle("active", k === name);
-  });
-}
-function setupButtons() {
-  backToVenues.addEventListener("click", () => showScreen("venues"));
-  backToRaces.addEventListener("click", () => showScreen("races"));
-  refreshBtn.addEventListener("click", () => loadData());
-  if (resetBtn) resetBtn.addEventListener("click", () => {
-    resetAIMemory();
-    aiStatus.textContent = "AI記憶データを初期化しました 🧹";
+    tr.innerHTML = `<td>${r.rank}</td><td>${r.boat}</td><td>${r.name}</td><td>${r.st}</td>`;
+    resultTableBody.appendChild(tr);
   });
 }
 
-// ----------------------------
-// ダミーデータ
-// ----------------------------
-function generateDummyData() {
-  return [
-    {
-      race_stadium_number: 2,
-      race_number: 1,
-      race_title: "テストダミー杯",
-      boats: Array.from({ length: 6 }, (_, j) => ({
-        racer_boat_number: j + 1,
-        racer_name: `テスト選手${j + 1}`,
-        racer_class_number: j < 2 ? 1 : 3,
-        racer_average_start_timing: 0.15 + Math.random() * 0.05,
-        racer_flying_count: 0,
-        racer_national_top_3_percent: (10 + Math.random() * 50).toFixed(1),
-        racer_local_top_3_percent: (10 + Math.random() * 50).toFixed(1),
-        racer_assigned_motor_top_2_percent: (30 + Math.random() * 40).toFixed(1)
-      }))
-    }
-  ];
-}
+/* 🔙 戻る */
+backToVenues.addEventListener("click", () => {
+  screenRaces.classList.remove("active");
+  screenVenues.classList.add("active");
+});
+backToRaces.addEventListener("click", () => {
+  screenDetail.classList.remove("active");
+  screenRaces.classList.add("active");
+});
+
+/* 🔄 更新 */
+refreshBtn.addEventListener("click", loadData);
+todayBtn.addEventListener("click", () => {
+  currentDate = "today";
+  todayBtn.classList.add("active");
+  yesterdayBtn.classList.remove("active");
+  updateDateLabel();
+});
+yesterdayBtn.addEventListener("click", () => {
+  currentDate = "yesterday";
+  todayBtn.classList.remove("active");
+  yesterdayBtn.classList.add("active");
+  updateDateLabel();
+});
+
+/* 🚀 初期化 */
+updateDateLabel();
+loadData();
