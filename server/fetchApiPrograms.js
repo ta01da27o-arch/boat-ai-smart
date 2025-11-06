@@ -3,62 +3,50 @@ import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
 
-const DATA_DIR = path.resolve("./data");
-const DATA_PATH = path.join(DATA_DIR, "data.json");
-const HISTORY_PATH = path.join(DATA_DIR, "history.json");
+const API_URL = "https://boatrace-api-example.free.beeceptor.com/race_programs"; // 仮の無料API例
+const DATA_PATH = path.resolve("server/data/data.json");
+const HISTORY_PATH = path.resolve("server/data/history.json");
 
-// Boatrace Open API for Programs
-const API_BASE = "https://boatraceopenapi.github.io/programs/v2";
-const TODAY_URL = API_BASE + "/today.json";
+console.log("🚀 外部APIからレースデータを取得しています...");
 
-async function fetchPrograms() {
-  console.log("▶︎ Fetching API:", TODAY_URL);
-  const res = await fetch(TODAY_URL);
-  if (!res.ok) {
-    throw new Error(`API HTTP ${res.status}`);
-  }
-  const json = await res.json();
-  return json;
-}
-
-async function main() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-
+async function fetchRaceData() {
   try {
-    const apiData = await fetchPrograms();
-    // 整形（必要に応じ調整してください）
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // 🔧 現行API構造対応
+    const programs = data?.venues?.programs || data?.programs || [];
+    if (programs.length === 0) throw new Error("データ配列が空です。");
+
+    // 💾 保存形式：app.jsが読み取れる形（配列のみ）
     const output = {
       updated: new Date().toISOString(),
-      venues: apiData
+      programs: programs,
     };
-    fs.writeFileSync(DATA_PATH, JSON.stringify(output, null, 2));
-    console.log(`✅ data.json saved: ${DATA_PATH}`);
 
-    // history 更新
-    let history = [];
-    if (fs.existsSync(HISTORY_PATH)) {
-      try {
-        history = JSON.parse(fs.readFileSync(HISTORY_PATH, "utf8"));
-        if (!Array.isArray(history)) history = [];
-      } catch {
-        history = [];
-      }
-    }
+    fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
+    fs.writeFileSync(DATA_PATH, JSON.stringify(output.programs, null, 2), "utf8");
 
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    history.unshift({
-      date: dateStr,
-      venues: Object.keys(apiData)
-    });
-
-    fs.writeFileSync(HISTORY_PATH, JSON.stringify(history.slice(0, 30), null, 2));
-    console.log(`✅ history.json updated: ${HISTORY_PATH}`);
+    console.log(`✅ ${programs.length}件のレースデータを保存しました。`);
+    return true;
   } catch (err) {
-    console.error("❌ Fetch failed:", err);
-    process.exit(1);
+    console.error("❌ 取得失敗:", err);
+    return false;
   }
 }
 
-main();
+// （任意）レース結果もダミーで保存（今後AI学習で使用）
+async function writeHistoryStub() {
+  const stub = {
+    updated: new Date().toISOString(),
+    results: [],
+  };
+  fs.mkdirSync(path.dirname(HISTORY_PATH), { recursive: true });
+  fs.writeFileSync(HISTORY_PATH, JSON.stringify(stub, null, 2), "utf8");
+}
+
+(async () => {
+  const ok = await fetchRaceData();
+  if (ok) await writeHistoryStub();
+})();
