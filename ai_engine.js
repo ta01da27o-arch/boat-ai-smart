@@ -1,102 +1,154 @@
-// ==========================
-// ai_engine.js
-// ==========================
+// ==========================================
+// ai_engine.js（永続保存・学習型AIモジュール）
+// ==========================================
 
-// 擬似乱数ヘルパー
-function rand(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+// 🔹 AIモデル（全体の記憶構造）
+export let globalAIModel = {
+  racerStats: {},     // 選手別の統計データ
+  motorStats: {},     // モーター番号別成績
+  boatStats: {},      // ボート番号別成績
+  lastLearned: null   // 最終学習日時
+};
+
+// ------------------------------------------
+// 🚀 AIコメント生成
+// ------------------------------------------
+export function generateAIComments(race) {
+  const comments = [];
+  race.boats.forEach((b, i) => {
+    let comment = "";
+    const st = b.racer_average_start_timing;
+    const mot = b.racer_assigned_motor_top_2_percent;
+    const nat = b.racer_national_top_3_percent;
+
+    if (st < 0.14) comment += "スタート早い。";
+    else if (st > 0.18) comment += "スタート遅め。";
+
+    if (mot > 50) comment += "モーター好調。";
+    else if (mot < 30) comment += "モーター不調。";
+
+    if (nat > 40) comment += "実力上位。";
+    else if (nat < 20) comment += "地力不足。";
+
+    comments.push(comment || "特筆なし。");
+  });
+  return comments;
 }
 
-/**
- * AI本命・穴の予想生成
- * @param {Object} race 出走データ
- * @returns {Object} { main:[], sub:[] }
- */
+// ------------------------------------------
+// 🔮 AI予測生成（本命／穴）
+// ------------------------------------------
 export function generateAIPredictions(race) {
-  if (!race?.boats) return { main: [], sub: [] };
-
-  // 出走ボート番号一覧
-  const boats = race.boats.map(b => b.racer_boat_number);
-  const combos = [];
-
-  // 3連単の買い目をダミー生成
-  for (let i = 0; i < 6; i++) {
-    const c = shuffle([...boats]).slice(0, 3).join("-");
-    combos.push(c);
-  }
-
-  // 本命3・穴3
-  const main = combos.slice(0, 3).map(c => ({
-    combo: c,
-    prob: rand(40, 80)
+  const scores = race.boats.map(b => ({
+    boat: b.racer_boat_number,
+    name: b.racer_name,
+    score: calcAIPoint(b)
   }));
-  const sub = combos.slice(3).map(c => ({
-    combo: c,
-    prob: rand(10, 40)
+
+  scores.sort((a, b) => b.score - a.score);
+  const main = scores.slice(0, 3).map(s => ({
+    combo: `${s.boat}-1着`,
+    prob: (60 - s.boat * 3).toFixed(1)
+  }));
+  const sub = scores.slice(-3).map(s => ({
+    combo: `${s.boat}-穴`,
+    prob: (10 + s.boat * 2).toFixed(1)
   }));
 
   return { main, sub };
 }
 
-/**
- * コース別AIコメント生成
- * @param {Object} race
- * @returns {string[]} 6件
- */
-export function generateAIComments(race) {
-  const phrases = [
-    "スタート速く展開作る可能性あり",
-    "ターン安定感あり、連対圏内",
-    "差し主体で展開待ち",
-    "進入で鍵を握る存在",
-    "スタート不安も一撃あり",
-    "展開次第で浮上可能"
-  ];
-
-  return race.boats.map((b, i) => {
-    const base = phrases[i % phrases.length];
-    return `${b.racer_boat_number}号艇 ${b.racer_name}：${base}`;
-  });
-}
-
-/**
- * AI順位予測
- * @param {Object} race
- * @returns {Object[]} [{boat,name,score}]
- */
+// ------------------------------------------
+// 📈 AI順位分析（点数算出）
+// ------------------------------------------
 export function analyzeRace(race) {
-  if (!race?.boats) return [];
-
-  // ダミー評価値（ランダム＋艇番補正）
-  const results = race.boats.map(b => ({
+  const list = race.boats.map(b => ({
     boat: b.racer_boat_number,
     name: b.racer_name,
-    score: (100 - b.racer_boat_number * 5 + rand(-10, 10))
+    score: calcAIPoint(b)
   }));
-
-  // 高スコア順で並べ替え
-  return results.sort((a, b) => b.score - a.score);
+  return list.sort((a, b) => b.score - a.score);
 }
 
-/**
- * 結果ファイル(history.json)からAIが学習するダミー関数
- * @param {Object} history
- * @returns {Object} 学習結果
- */
-export function learnFromResults(history) {
-  if (!history?.results) return { message: "履歴データなし" };
+// ------------------------------------------
+// 🧠 学習処理（history.json → data.json対応）
+// ------------------------------------------
+export function learnFromResults(race, result) {
+  if (!race || !result) return;
+  const winner = result.winner_boat_number || result.winning_boat;
 
-  const count = history.results.length;
-  const latest = history.results[0];
-  return {
-    message: `AIは過去${count}件のレース結果から学習しました。最新: ${latest?.venue_name || "-"} 第${latest?.race_number || "-"}R`
-  };
+  race.boats.forEach(b => {
+    const id = b.racer_number;
+    if (!globalAIModel.racerStats[id]) {
+      globalAIModel.racerStats[id] = { win: 0, lose: 0, total: 0 };
+    }
+    const stat = globalAIModel.racerStats[id];
+    stat.total++;
+    if (b.racer_boat_number === winner) stat.win++;
+    else stat.lose++;
+  });
+
+  globalAIModel.lastLearned = new Date().toISOString();
+  saveAIMemory();
 }
 
-/* ---- ユーティリティ ---- */
-function shuffle(arr) {
-  return arr
-    .map(v => ({ v, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ v }) => v);
+// ------------------------------------------
+// 📊 AIスコア算出ロジック
+// ------------------------------------------
+function calcAIPoint(b) {
+  const base =
+    (b.racer_national_top_3_percent || 0) * 0.4 +
+    (b.racer_local_top_3_percent || 0) * 0.2 +
+    (b.racer_assigned_motor_top_2_percent || 0) * 0.4;
+
+  const st = b.racer_average_start_timing;
+  const stBonus = st < 0.14 ? 5 : st > 0.18 ? -3 : 0;
+
+  const racerMemory = globalAIModel.racerStats[b.racer_number];
+  const learnBonus = racerMemory
+    ? (racerMemory.win / (racerMemory.total || 1)) * 100 * 0.3
+    : 0;
+
+  return (base + stBonus + learnBonus).toFixed(1);
+}
+
+// ------------------------------------------
+// 💾 localStorage 永続化
+// ------------------------------------------
+const AI_MEMORY_KEY = "boat-ai-memory";
+
+export function saveAIMemory() {
+  try {
+    localStorage.setItem(AI_MEMORY_KEY, JSON.stringify(globalAIModel));
+    console.log("💾 AIメモリ保存完了");
+  } catch (e) {
+    console.warn("AIメモリ保存失敗:", e);
+  }
+}
+
+export function loadAIMemory() {
+  try {
+    const json = localStorage.getItem(AI_MEMORY_KEY);
+    if (json) {
+      globalAIModel = JSON.parse(json);
+      console.log("🧠 AIメモリ復元完了");
+      return true;
+    }
+  } catch (e) {
+    console.warn("AIメモリ復元失敗:", e);
+  }
+  return false;
+}
+
+export function resetAIMemory() {
+  localStorage.removeItem(AI_MEMORY_KEY);
+  globalAIModel = { racerStats: {}, motorStats: {}, boatStats: {}, lastLearned: null };
+  console.log("🧹 AIメモリリセット");
+}
+
+// ------------------------------------------
+// 🧩 簡易AIテスト関数（開発用）
+// ------------------------------------------
+export function debugAI() {
+  console.table(globalAIModel.racerStats);
 }
