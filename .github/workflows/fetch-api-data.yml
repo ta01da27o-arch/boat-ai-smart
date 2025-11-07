@@ -1,49 +1,47 @@
-name: 🔄 Fetch Race Data
+name: Fetch AI Race Data
 
 on:
-  workflow_dispatch:  # 手動実行用
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *" # JST12:00頃に自動実行
 
 jobs:
-  fetch-data:
+  fetch:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 リポジトリをチェックアウト
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🧩 Node.js をセットアップ
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 📦 パッケージをインストール
-        run: |
-          cd server
-          npm install node-fetch@3 cheerio
+      - name: Install dependencies
+        run: npm install node-fetch@3 cheerio
 
-      - name: 🚀 レースデータを取得
+      - name: Fetch race data
         run: |
           cd server
           node fetchApiPrograms.js
 
-      - name: 🧾 JSONファイルを確認
+      - name: Generate AI predictions
         run: |
-          echo "=== data.json ==="
-          cat server/data/data.json || echo "data.json not found"
-          echo "================"
+          cd server
+          node fetchAllAI.js
 
-      - name: 🪄 Git 設定
+      - name: Commit and Push updated data
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add server/data/*.json server/data/*.csv
+          git commit -m "🔄 Auto Update: Race data + AI predictions" || echo "No changes"
+          git push
 
-      - name: 💾 変更をコミット
+      - name: Show output files
         run: |
-          git add server/data/data.json
-          git commit -m "🔄 Update race data via external API" || echo "No changes to commit"
-
-      - name: 🚀 GitHubへプッシュ
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+          echo "=== data.json ==="
+          cat server/data/data.json
+          echo "=== predictions.csv ==="
+          cat server/data/predictions.csv
