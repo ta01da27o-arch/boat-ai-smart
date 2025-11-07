@@ -4,11 +4,12 @@ import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
 const __dirname = path.resolve();
+// ✅ 保存先を正確に修正（server/data）
 const OUTPUT_PATH = path.join(__dirname, "server/data/data.json");
 
 // 公式HTML or 外部API候補URL
 const API_URL = "https://www.boatrace.jp/owpc/pc/RaceProgram";
-const API_FALLBACK = "https://api.boatrace-db.net/v1/programs/today"; // 無料APIが生きていれば利用
+const API_FALLBACK = "https://api.boatrace-db.net/v1/programs/today";
 
 // 各場コード（01〜24）
 const VENUE_CODES = [
@@ -97,6 +98,9 @@ function getToday() {
       programs: data,
     },
   };
+
+  // ✅ ディレクトリ確認（なければ作成）
+  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
 
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2), "utf-8");
   console.log(`✅ データ保存完了: ${OUTPUT_PATH}`);
