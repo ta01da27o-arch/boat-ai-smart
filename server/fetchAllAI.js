@@ -1,62 +1,56 @@
-// server/fetchAllAI.js
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-import { VENUES } from "./venues.js";
-import { scrapeRaceListAndEntries } from "./scrape.js";
+import { generateAIPredictions } from "./ai_engine.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
+const DATA_PATH = path.join(__dirname, "server/data/data.json");
+const HISTORY_PATH = path.join(__dirname, "server/data/history.json");
+const OUTPUT_PATH = path.join(__dirname, "server/data/predictions.csv");
 
-// 正しいパス設定（server/data）
-const dataDir = path.join(__dirname, "data");
-const dataPath = path.join(dataDir, "data.json");
-const historyPath = path.join(dataDir, "history.json");
+console.log("🤖 AI予想データ生成開始...");
 
-// ディレクトリが存在しない場合は作成
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-
-async function main() {
-  const date = new Date();
-  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
-  const allData = { updated: new Date().toISOString(), venues: {} };
-
-  for (const v of VENUES) {
-    console.log(`■ FETCH：${v.name}`);
-    try {
-      const list = await scrapeRaceListAndEntries(v.code, dateStr);
-      console.log(`✅ 抽出：${v.name} → レース数 ${list.length}`);
-      allData.venues[v.name] = list;
-    } catch (e) {
-      console.error(`❌ ${v.name} 取得失敗: ${e.message}`);
-      allData.venues[v.name] = [];
-    }
-  }
-
-  // 保存処理
-  fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
-  console.log(`✅ data.json saved: ${dataPath}`);
-
-  let history = [];
-  if (fs.existsSync(historyPath)) {
-    try {
-      history = JSON.parse(fs.readFileSync(historyPath, "utf8"));
-      if (!Array.isArray(history)) history = [];
-    } catch {
-      history = [];
-    }
-  }
-
-  history.unshift({
-    date: dateStr,
-    summary: VENUES.map(v => v.name)
-  });
-
-  fs.writeFileSync(historyPath, JSON.stringify(history.slice(0, 30), null, 2));
-  console.log(`✅ history.json updated: ${historyPath}`);
+if (!fs.existsSync(DATA_PATH)) {
+  console.error("❌ data.json が見つかりません。先に fetchApiPrograms.js を実行してください。");
+  process.exit(1);
 }
 
-main().catch(err => {
-  console.error("❌ Fetch failed:", err);
+// 最新レースデータを読み込み
+const data = JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
+const programs = data.venues.programs || [];
+if (programs.length === 0) {
+  console.error("❌ レースデータが空です。");
   process.exit(1);
+}
+
+// 既存履歴を読み込み
+let history = [];
+if (fs.existsSync(HISTORY_PATH)) {
+  history = JSON.parse(fs.readFileSync(HISTORY_PATH, "utf-8"));
+}
+
+// 予測を生成
+let csvLines = ["stadium,race_number,buy,probability"];
+for (const venue of programs) {
+  const { stadium_code, stadium_name, races } = venue;
+  if (!races || races.length === 0) continue;
+
+  for (const race of races) {
+    const aiPredictions = generateAIPredictions(stadium_name, race.race_number);
+    for (const pred of aiPredictions) {
+      csvLines.push(`${stadium_name},${race.race_number},${pred.buy},${pred.probability}`);
+    }
+  }
+}
+
+// CSV出力
+fs.writeFileSync(OUTPUT_PATH, csvLines.join("\n"), "utf-8");
+console.log(`✅ 予想データ出力完了: ${OUTPUT_PATH}`);
+
+// 学習データ履歴を更新
+history.push({
+  timestamp: new Date().toISOString(),
+  updated: data.updated,
+  total_venues: programs.length,
 });
+fs.writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2), "utf-8");
+console.log(`🧩 学習履歴更新完了: ${HISTORY_PATH}`);

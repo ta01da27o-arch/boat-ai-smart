@@ -1,10 +1,9 @@
 import fs from "fs";
 import path from "path";
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import { chromium } from "playwright";
 
 const __dirname = process.cwd();
-const OUTPUT_PATH = path.join(__dirname, "data/data.json");
+const OUTPUT_PATH = path.join(__dirname, "server/data/data.json");
 const VENUE_CODES = [
   "01","02","03","04","05","06","07","08",
   "09","10","11","12","13","14","15","16",
@@ -14,56 +13,55 @@ const VENUE_CODES = [
 console.log("🚀 外部APIからレースデータを取得しています...");
 
 async function fetchRaceData() {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
   const today = getToday();
   const programs = [];
 
   for (const code of VENUE_CODES) {
     const url = `https://www.boatrace.jp/owpc/pc/race/index?jcd=${code}&hd=${today}`;
     try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const html = await res.text();
-      const $ = cheerio.load(html);
+      await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
 
-      // ✅ 開催タイトル取得
-      const title = $(".heading2_title, .heading1_title").first().text().trim();
+      // JSレンダリング完了を待つ
+      await page.waitForTimeout(1500);
 
-      // 開催なし判定
+      const title = await page.textContent(".heading2_title, .heading1_title").catch(() => null);
       if (!title || title.includes("開催なし")) {
         console.log(`ー ${code}番場：開催なし`);
         continue;
       }
 
-      const races = [];
+      const stadiumName = await page.title().then(t =>
+        t.replace("｜BOAT RACE オフィシャルウェブサイト", "").trim()
+      );
 
-      // ✅ テーブルからレース情報を抽出
-      $("table.is-fs12 td").each((i, el) => {
-        const txt = $(el).text().trim();
-        if (txt.match(/R/)) {
-          races.push({
-            race_number: i + 1,
-            race_title: txt,
-          });
-        }
-      });
+      // レース番号を抽出（例：1R～12R）
+      const races = await page.$$eval("table.is-fs12 td", els =>
+        els
+          .map(e => e.textContent.trim())
+          .filter(t => /^[0-9]{1,2}R$/.test(t))
+          .map(t => ({ race_number: parseInt(t.replace("R", "")), race_title: t }))
+      );
 
       if (races.length > 0) {
         programs.push({
           stadium_code: code,
-          stadium_name: $("title").text().replace("｜BOAT RACE オフィシャルウェブサイト", "").trim(),
+          stadium_name: stadiumName,
           race_date: today,
-          race_title: title,
+          race_title: title.trim(),
           races,
         });
-        console.log(`✅ ${code}番場：${races.length}R取得 (${title})`);
+        console.log(`✅ ${code}番場：${races.length}R取得 (${title.trim()})`);
       } else {
         console.log(`⚠️ ${code}番場：レース情報なし`);
       }
     } catch (err) {
-      console.log(`⚠️ ${code}番場 取得エラー: ${err.message}`);
+      console.log(`⚠️ ${code}番場エラー: ${err.message}`);
     }
   }
 
+  await browser.close();
   return programs;
 }
 
