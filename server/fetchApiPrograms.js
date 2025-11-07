@@ -3,19 +3,18 @@ import path from "path";
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-const __dirname = path.resolve();
-// ✅ 保存先を正確に修正（server/data）
-const OUTPUT_PATH = path.join(__dirname, "server/data/data.json");
+// __dirname = 現在の作業ディレクトリ
+const __dirname = process.cwd();
+// ✅ cd server の状態でも正しく保存されるように修正
+const OUTPUT_PATH = path.join(__dirname, "data/data.json");
 
-// 公式HTML or 外部API候補URL
 const API_URL = "https://www.boatrace.jp/owpc/pc/RaceProgram";
 const API_FALLBACK = "https://api.boatrace-db.net/v1/programs/today";
 
-// 各場コード（01〜24）
 const VENUE_CODES = [
-  "01", "02", "03", "04", "05", "06", "07", "08",
-  "09", "10", "11", "12", "13", "14", "15", "16",
-  "17", "18", "19", "20", "21", "22", "23", "24"
+  "01","02","03","04","05","06","07","08",
+  "09","10","11","12","13","14","15","16",
+  "17","18","19","20","21","22","23","24"
 ];
 
 console.log("🚀 外部APIからレースデータを取得しています...");
@@ -23,7 +22,7 @@ console.log("🚀 外部APIからレースデータを取得しています...")
 async function fetchRaceData() {
   let programs = [];
 
-  // ✅ 1️⃣ 外部API試行
+  // ✅ まずAPIを試す
   try {
     const res = await fetch(API_FALLBACK);
     if (res.ok) {
@@ -35,21 +34,22 @@ async function fetchRaceData() {
     } else {
       console.log("⚠️ 外部API応答なし:", res.status);
     }
-  } catch {
+  } catch (err) {
     console.log("⚠️ 外部API接続失敗 → HTMLスクレイピングに切替");
   }
 
-  // ✅ 2️⃣ HTMLスクレイピング fallback
+  // ✅ スクレイピング fallback
   for (const code of VENUE_CODES) {
     try {
       const url = `${API_URL}?jcd=${code}&hd=${getToday()}`;
       const res = await fetch(url);
+      if (!res.ok) continue;
+
       const html = await res.text();
       const $ = cheerio.load(html);
-
       const title = $(".heading1_title").text().trim();
-      const races = [];
 
+      const races = [];
       $(".table1 tbody tr").each((i, el) => {
         const tds = $(el).find("td");
         if (tds.length >= 4) {
@@ -61,13 +61,14 @@ async function fetchRaceData() {
         }
       });
 
-      programs.push({
-        stadium_code: code,
-        stadium_name: $(".heading1_title").text().replace("レース展望", "").trim(),
-        race_date: getToday(),
-        races,
-        title
-      });
+      if (races.length > 0) {
+        programs.push({
+          stadium_code: code,
+          stadium_name: title.replace("レース展望", "").trim(),
+          race_date: getToday(),
+          races,
+        });
+      }
     } catch (e) {
       console.log(`⚠️ ${code}番場の取得失敗: ${e.message}`);
     }
@@ -94,12 +95,10 @@ function getToday() {
 
   const output = {
     updated: new Date().toISOString(),
-    venues: {
-      programs: data,
-    },
+    venues: { programs: data },
   };
 
-  // ✅ ディレクトリ確認（なければ作成）
+  // ✅ dataディレクトリが無ければ作成
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
 
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2), "utf-8");
