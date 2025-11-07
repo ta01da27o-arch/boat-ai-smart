@@ -1,33 +1,49 @@
-name: Fetch Race Data (External API)
+name: 🔄 Fetch Race Data
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 3 * * *"  # JST12:00頃に自動実行（UTC3:00）
+  workflow_dispatch:  # 手動実行用
 
 jobs:
-  fetch:
+  fetch-data:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧭 Checkout repository
+      - name: 📥 リポジトリをチェックアウト
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js
+      - name: 🧩 Node.js をセットアップ
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 📦 Install dependencies
-        run: npm install
+      - name: 📦 パッケージをインストール
+        run: |
+          cd server
+          npm install node-fetch@3 cheerio
 
-      - name: 🚀 Fetch race data from external API
-        run: node server/fetchApiPrograms.js
+      - name: 🚀 レースデータを取得
+        run: |
+          cd server
+          node fetchApiPrograms.js
 
-      - name: 💾 Commit and Push updated data
+      - name: 🧾 JSONファイルを確認
+        run: |
+          echo "=== data.json ==="
+          cat server/data/data.json || echo "data.json not found"
+          echo "================"
+
+      - name: 🪄 Git 設定
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add server/data/*.json
-          git commit -m "🔄 Update race data via external API" || echo "No changes"
-          git push
+
+      - name: 💾 変更をコミット
+        run: |
+          git add server/data/data.json
+          git commit -m "🔄 Update race data via external API" || echo "No changes to commit"
+
+      - name: 🚀 GitHubへプッシュ
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
