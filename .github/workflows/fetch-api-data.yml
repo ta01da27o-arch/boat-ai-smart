@@ -1,39 +1,33 @@
-name: Fetch Boat Race Programs (API版)
+name: Fetch Race Data (External API)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"  # 毎日 03:00 UTC（日本時間12:00頃）に実行
-
-permissions:
-  contents: write
+    - cron: "0 3 * * *"  # JST12:00頃に自動実行（UTC3:00）
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 🧭 Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: |
-          npm install node-fetch@3
+      - name: 📦 Install dependencies
+        run: npm install
 
-      - name: Fetch data from external API
-        run: |
-          node server/fetchApiPrograms.js
+      - name: 🚀 Fetch race data from external API
+        run: node server/fetchApiPrograms.js
 
-      - name: Commit and Push updated data
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 💾 Commit and Push updated data
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/data.json data/history.json
-          git commit -m "🔄 Update race data via Boatrace API" || echo "No changes to commit"
-          git push || echo "No push"
+          git add server/data/*.json
+          git commit -m "🔄 Update race data via external API" || echo "No changes"
+          git push
