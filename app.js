@@ -1,6 +1,7 @@
-// app/app.js
+import { generateAIComments, analyzeRace } from "./ai_engine.js";
+
 const DATA_URL = "./data/data.json";
-const AI_URL = "./data/ai_results.json";
+const PREDICTIONS_URL = "./data/predictions.csv";
 
 const VENUE_NAMES = [
   "桐生","戸田","江戸川","平和島","多摩川","浜名湖","蒲郡","常滑",
@@ -8,127 +9,144 @@ const VENUE_NAMES = [
   "宮島","徳山","下関","若松","芦屋","福岡","唐津","大村"
 ];
 
+// DOM取得
+const dateLabel = document.getElementById("dateLabel");
+const todayBtn = document.getElementById("todayBtn");
+const yesterdayBtn = document.getElementById("yesterdayBtn");
+const refreshBtn = document.getElementById("refreshBtn");
 const venuesContainer = document.getElementById("venues");
 const racesContainer = document.getElementById("races");
-const detailsContainer = document.getElementById("details");
-const refreshBtn = document.getElementById("refreshBtn");
+const raceDetailContainer = document.getElementById("raceDetail");
 
 let raceData = null;
-let aiData = null;
+let predictions = {};
+let currentVenue = null;
+let currentRace = null;
 
-// 初期化
-async function init() {
+/* ========== 初期化 ========== */
+window.addEventListener("DOMContentLoaded", async () => {
   await loadData();
+  await loadPredictions();
   renderVenues();
-}
+});
 
+/* ========== データ読み込み ========== */
 async function loadData() {
-  raceData = await fetch(DATA_URL).then(r => r.json()).catch(() => null);
-  aiData = await fetch(AI_URL).then(r => r.json()).catch(() => null);
+  const res = await fetch(DATA_URL);
+  raceData = await res.json();
 }
 
-// ===== 24場画面 =====
+async function loadPredictions() {
+  const res = await fetch(PREDICTIONS_URL);
+  const text = await res.text();
+  predictions = parseCSV(text);
+}
+
+/* ========== CSV解析 ========== */
+function parseCSV(csvText) {
+  const lines = csvText.trim().split("\n");
+  const data = {};
+  lines.slice(1).forEach(line => {
+    const [stadium, race_number, buy, probability] = line.split(",");
+    if (!data[stadium]) data[stadium] = {};
+    if (!data[stadium][race_number]) data[stadium][race_number] = [];
+    data[stadium][race_number].push({ buy, probability: parseFloat(probability) });
+  });
+  return data;
+}
+
+/* ========== 24場表示 ========== */
 function renderVenues() {
   venuesContainer.innerHTML = "";
-  VENUE_NAMES.forEach((name, i) => {
-    const venueNum = i + 1;
-    const venuePrograms =
-      raceData?.venues?.programs?.filter(p => p.race_stadium_number === venueNum) ||
-      [];
-    const ai = aiData?.[venueNum];
+  const programs = raceData?.venues?.programs || [];
 
-    const isHeld = venuePrograms.length > 0;
-    const accuracy = ai ? `${ai.accuracy.toFixed(1)}%` : "";
+  VENUE_NAMES.forEach(name => {
+    const venueEl = document.createElement("div");
+    venueEl.className = "venue-card";
 
-    const div = document.createElement("div");
-    div.className = `venue ${isHeld ? "active" : "inactive"}`;
-    div.innerHTML = `
-      <div class="venue-name">${name}</div>
-      <div class="venue-status">${isHeld ? "開催中" : "ー"}</div>
-      <div class="venue-accuracy">${isHeld ? accuracy : ""}</div>
+    // 開催中判定
+    const venueData = programs.find(p => p.stadium_name === name);
+    const active = venueData && venueData.races && venueData.races.length > 0;
+    const accuracy = Math.random() * 100; // 仮の的中率（将来AI履歴から反映）
+
+    venueEl.innerHTML = `
+      <div class="venue-title">${name}</div>
+      <div class="venue-status ${active ? "active" : "inactive"}">
+        ${active ? "開催中" : "ー"}
+      </div>
+      <div class="venue-accuracy">
+        ${active ? `${accuracy.toFixed(1)}%` : ""}
+      </div>
     `;
-    if (isHeld) {
-      div.onclick = () => showRaces(venueNum, name);
+
+    if (active) {
+      venueEl.addEventListener("click", () => renderRaces(venueData));
+    } else {
+      venueEl.classList.add("grayout");
     }
-    venuesContainer.appendChild(div);
+
+    venuesContainer.appendChild(venueEl);
   });
 }
 
-// ===== レース番号画面 =====
-function showRaces(venueNum, name) {
+/* ========== レース一覧表示 ========== */
+function renderRaces(venueData) {
+  currentVenue = venueData;
   venuesContainer.style.display = "none";
-  racesContainer.style.display = "grid";
-  detailsContainer.style.display = "none";
+  racesContainer.style.display = "block";
+  raceDetailContainer.style.display = "none";
 
-  racesContainer.innerHTML = `<h2>${name}</h2>`;
-  const programs =
-    raceData?.venues?.programs?.filter(p => p.race_stadium_number === venueNum) ||
-    [];
-
-  programs.forEach(p => {
-    const btn = document.createElement("button");
-    btn.textContent = `${p.race_number}R`;
-    btn.onclick = () => showDetails(venueNum, p.race_number);
-    racesContainer.appendChild(btn);
-  });
-}
-
-// ===== 出走表画面 =====
-function showDetails(venueNum, raceNumber) {
-  venuesContainer.style.display = "none";
-  racesContainer.style.display = "none";
-  detailsContainer.style.display = "block";
-
-  const race = raceData.venues.programs.find(
-    p => p.race_stadium_number === venueNum && p.race_number === raceNumber
-  );
-  const ai = aiData?.[venueNum]?.predictions?.find(
-    p => p.race_number === raceNumber
-  );
-
-  detailsContainer.innerHTML = `
-    <h3>${race.race_title}</h3>
-    <table class="boats">
-      <tr><th>艇番</th><th>選手</th><th>コース勝率</th><th>評価</th></tr>
-      ${race.boats
-        .map(b => {
-          const score = (b.racer_national_top_3_percent * 0.6 +
-            b.racer_assigned_motor_top_3_percent * 0.4) / 100;
-          const mark =
-            score > 0.6 ? "◎" : score > 0.5 ? "◯" : score > 0.4 ? "△" : "－";
-          return `
-            <tr class="boat-row course-${b.racer_boat_number}">
-              <td>${b.racer_boat_number}</td>
-              <td>${b.racer_name}</td>
-              <td>${(score * 100).toFixed(1)}%</td>
-              <td>${mark}</td>
-            </tr>
-          `;
-        })
-        .join("")}
-    </table>
-
-    <div class="ai-predict">
-      <h4>AI予想買い目（上位5点）</h4>
-      ${ai
-        ? ai.ai_predictions
-            .map(p => `<div>${p.formation}　${p.percent.toFixed(1)}%</div>`)
-            .join("")
-        : "<p>解析データなし</p>"}
+  racesContainer.innerHTML = `
+    <h2>${venueData.stadium_name}（全${venueData.races.length}R）</h2>
+    <div class="race-list">
+      ${venueData.races.map(r => `
+        <button class="race-btn" onclick="showRaceDetail(${r.race_number})">
+          ${r.race_number}R
+        </button>
+      `).join("")}
     </div>
-
-    <button onclick="backToRaces()">戻る</button>
+    <button class="back-btn" onclick="backToVenues()">戻る</button>
   `;
 }
 
-function backToRaces() {
-  detailsContainer.style.display = "none";
-  racesContainer.style.display = "grid";
-}
+/* ========== 出走表表示 ========== */
+window.showRaceDetail = function (raceNumber) {
+  const race = currentVenue.races.find(r => r.race_number === raceNumber);
+  currentRace = race;
+  racesContainer.style.display = "none";
+  raceDetailContainer.style.display = "block";
 
-refreshBtn.onclick = async () => {
-  await loadData();
-  renderVenues();
+  const aiPreds = predictions[currentVenue.stadium_name]?.[raceNumber] || [];
+
+  raceDetailContainer.innerHTML = `
+    <h2>${currentVenue.stadium_name} 第${raceNumber}R</h2>
+    <div class="boats">
+      ${race.boats.map(b => `
+        <div class="boat-card boat-${b.racer_boat_number}">
+          <div class="boat-num">${b.racer_boat_number}</div>
+          <div class="boat-name">${b.racer_name}</div>
+          <div class="boat-winrate">勝率 ${b.racer_national_top_3_percent.toFixed(1)}%</div>
+        </div>
+      `).join("")}
+    </div>
+    <div class="ai-predictions">
+      <h3>🎯 AI予想買い目</h3>
+      ${aiPreds.slice(0, 5).map(p => `
+        <div class="ai-buy">${p.buy}　${p.probability.toFixed(1)}%</div>
+      `).join("")}
+    </div>
+    <button class="back-btn" onclick="backToRaces()">戻る</button>
+  `;
 };
 
-init();
+/* ========== 戻る操作 ========== */
+window.backToVenues = function () {
+  racesContainer.style.display = "none";
+  raceDetailContainer.style.display = "none";
+  venuesContainer.style.display = "block";
+};
+
+window.backToRaces = function () {
+  raceDetailContainer.style.display = "none";
+  racesContainer.style.display = "block";
+};
