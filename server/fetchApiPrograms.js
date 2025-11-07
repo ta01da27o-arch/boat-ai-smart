@@ -3,14 +3,10 @@ import path from "path";
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 
-// __dirname = 現在の作業ディレクトリ
 const __dirname = process.cwd();
-// ✅ cd server の状態でも正しく保存されるように修正
 const OUTPUT_PATH = path.join(__dirname, "data/data.json");
 
-const API_URL = "https://www.boatrace.jp/owpc/pc/RaceProgram";
 const API_FALLBACK = "https://api.boatrace-db.net/v1/programs/today";
-
 const VENUE_CODES = [
   "01","02","03","04","05","06","07","08",
   "09","10","11","12","13","14","15","16",
@@ -22,7 +18,7 @@ console.log("🚀 外部APIからレースデータを取得しています...")
 async function fetchRaceData() {
   let programs = [];
 
-  // ✅ まずAPIを試す
+  // ===== 1️⃣ 外部API試行 =====
   try {
     const res = await fetch(API_FALLBACK);
     if (res.ok) {
@@ -34,29 +30,40 @@ async function fetchRaceData() {
     } else {
       console.log("⚠️ 外部API応答なし:", res.status);
     }
-  } catch (err) {
+  } catch {
     console.log("⚠️ 外部API接続失敗 → HTMLスクレイピングに切替");
   }
 
-  // ✅ スクレイピング fallback
+  // ===== 2️⃣ スクレイピング =====
+  const today = getToday();
+
   for (const code of VENUE_CODES) {
+    const url = `https://www.boatrace.jp/owpc/pc/race/index?jcd=${code}&hd=${today}`;
     try {
-      const url = `${API_URL}?jcd=${code}&hd=${getToday()}`;
       const res = await fetch(url);
       if (!res.ok) continue;
 
       const html = await res.text();
       const $ = cheerio.load(html);
-      const title = $(".heading1_title").text().trim();
+
+      // ✅ 開催タイトル取得（例：『第14回マスターズVSルーキーズ・マンスリーBR杯』）
+      const title = $(".is-blink .heading2_title, .heading1_title").first().text().trim() || "開催なし";
+
+      // ✅ 開催なしの場合スキップ
+      if (title === "開催なし" || title === "") {
+        continue;
+      }
 
       const races = [];
-      $(".table1 tbody tr").each((i, el) => {
-        const tds = $(el).find("td");
-        if (tds.length >= 4) {
+
+      // ✅ レースカード要素取得（例：第1R〜第12R）
+      $(".table1 .is-fs12").each((i, el) => {
+        const raceName = $(el).text().trim();
+        if (raceName) {
           races.push({
             race_number: i + 1,
-            race_title: $(tds[1]).text().trim(),
-            race_closed_at: $(tds[2]).text().trim(),
+            race_title: raceName,
+            race_closed_at: null,
           });
         }
       });
@@ -64,10 +71,11 @@ async function fetchRaceData() {
       if (races.length > 0) {
         programs.push({
           stadium_code: code,
-          stadium_name: title.replace("レース展望", "").trim(),
-          race_date: getToday(),
+          stadium_name: $("title").text().replace("｜BOAT RACE オフィシャルウェブサイト", "").trim(),
+          race_date: today,
           races,
         });
+        console.log(`✅ ${code}番場: ${races.length}R取得`);
       }
     } catch (e) {
       console.log(`⚠️ ${code}番場の取得失敗: ${e.message}`);
@@ -98,9 +106,7 @@ function getToday() {
     venues: { programs: data },
   };
 
-  // ✅ dataディレクトリが無ければ作成
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
-
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2), "utf-8");
   console.log(`✅ データ保存完了: ${OUTPUT_PATH}`);
 })();
