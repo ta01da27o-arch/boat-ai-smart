@@ -1,0 +1,17 @@
+{
+  "name": "boat-ai-smart",
+  "version": "1.0.0",
+  "description": "Boat Race AI Smart Data Fetcher",
+  "main": "server/fetchApiPrograms.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/fetchApiPrograms.js",
+    "fetch": "node server/fetchApiPrograms.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "author": "",
+  "license": "MIT"
+}
