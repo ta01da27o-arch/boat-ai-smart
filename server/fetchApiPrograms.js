@@ -1,95 +1,64 @@
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
-import iconv from "iconv-lite";
-import { execSync } from "child_process";
-import { parseLzhTextToJson } from "./parseLzhData.js";
+import cheerio from "cheerio";
 
 const DATA_DIR = path.join(process.cwd(), "server", "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const today = new Date();
-const yesterday = new Date(today);
-yesterday.setDate(today.getDate() - 1);
-
-const formatDate = (d) =>
-  d.toISOString().slice(0, 10).replace(/-/g, "");
-
-const todayStr = formatDate(today);
-const yesterdayStr = formatDate(yesterday);
-
 const OUTPUT_JSON = path.join(DATA_DIR, "data.json");
 
-async function tryDownload(dateStr) {
-  const url = `https://www.boatrace.jp/owpc/pc/extra/data/kaisyuu/${dateStr}.lzh`;
-  const lzhPath = path.join(DATA_DIR, `${dateStr}.lzh`);
-  console.log(`📥 ダウンロード試行: ${url}`);
+async function scrapeRacePrograms() {
+  const baseUrl = "https://www.boatrace.jp/owpc/pc/race/racelist";
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+  console.log(`🚀 スクレイピング開始 (${dateStr})`);
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.log(`⚠️ ${dateStr} のLZHは存在しません (HTTP ${res.status})`);
-    return null;
+  const venues = [];
+
+  for (let jcd = 1; jcd <= 24; jcd++) {
+    const url = `${baseUrl}?hd=${dateStr}&jcd=${String(jcd).padStart(2, "0")}`;
+    console.log(`🌊 ${jcd.toString().padStart(2, "0")}番場：取得中...`);
+
+    try {
+      const res = await fetch(url);
+      const html = await res.text();
+      const $ = cheerio.load(html);
+
+      const title = $(".title04").first().text().trim();
+      if (!title) {
+        console.log(`⚠️ ${jcd.toString().padStart(2, "0")}番場：レース情報なし`);
+        continue;
+      }
+
+      const races = [];
+      $(".is-active .table1").each((i, el) => {
+        const raceTitle = $(el).find(".table1_boatImage1Title").text().trim();
+        races.push({
+          race_number: i + 1,
+          race_title: raceTitle || "番組未設定",
+        });
+      });
+
+      venues.push({
+        stadium_number: jcd,
+        title,
+        races,
+      });
+
+      console.log(`✅ ${jcd.toString().padStart(2, "0")}番場：${races.length}R 取得完了`);
+    } catch (err) {
+      console.log(`❌ ${jcd.toString().padStart(2, "0")}番場：取得失敗 (${err.message})`);
+    }
   }
 
-  const buffer = await res.arrayBuffer();
-  const data = Buffer.from(buffer);
+  const result = {
+    updated: new Date().toISOString(),
+    venues: { programs: venues },
+  };
 
-  // --- LZH形式チェック ---
-  if (!data.slice(0, 3).equals(Buffer.from([0x2D, 0x6C, 0x68]))) {
-    console.log(`⚠️ ${dateStr}.lzh はLZH形式ではありません（HTMLの可能性）`);
-    return null;
-  }
-
-  fs.writeFileSync(lzhPath, data);
-  console.log(`✅ LZH保存完了: ${lzhPath}`);
-  return lzhPath;
+  fs.writeFileSync(OUTPUT_JSON, JSON.stringify(result, null, 2));
+  console.log(`✅ JSON保存完了: ${OUTPUT_JSON}`);
 }
 
-async function extractAndParse(lzhPath) {
-  try {
-    console.log("📦 LZHを展開中...");
-    execSync(`7z e "${lzhPath}" -o"${DATA_DIR}" -y`);
-    const txtFile = fs
-      .readdirSync(DATA_DIR)
-      .find((f) => f.toLowerCase().endsWith(".txt"));
-
-    if (!txtFile) throw new Error("TXTファイルが見つかりません");
-    const txtPath = path.join(DATA_DIR, txtFile);
-    console.log(`✅ 展開完了: ${txtPath}`);
-
-    const sjisBuffer = fs.readFileSync(txtPath);
-    const utf8Text = iconv.decode(sjisBuffer, "Shift_JIS");
-    const jsonData = parseLzhTextToJson(utf8Text);
-    jsonData.updated = new Date().toISOString();
-
-    fs.writeFileSync(OUTPUT_JSON, JSON.stringify(jsonData, null, 2));
-    console.log(`✅ JSON保存完了: ${OUTPUT_JSON}`);
-    return true;
-  } catch (err) {
-    console.error("❌ LZH解析失敗:", err.message);
-    return false;
-  }
-}
-
-async function main() {
-  console.log("🚀 公式LZHデータ取得を開始します...");
-
-  let lzhFile = await tryDownload(todayStr);
-  if (!lzhFile) {
-    console.log("⚠️ 当日データなし → 前日分に切替します");
-    lzhFile = await tryDownload(yesterdayStr);
-  }
-
-  if (!lzhFile) {
-    console.error("❌ ダウンロード可能なLZHが見つかりません");
-    process.exit(1);
-  }
-
-  const success = await extractAndParse(lzhFile);
-  if (!success) {
-    console.error("❌ データ取得に失敗しました");
-    process.exit(1);
-  }
-}
-
-main();
+scrapeRacePrograms();
