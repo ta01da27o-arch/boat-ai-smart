@@ -30,8 +30,17 @@ async function tryDownload(dateStr) {
     console.log(`⚠️ ${dateStr} のLZHは存在しません (HTTP ${res.status})`);
     return null;
   }
+
   const buffer = await res.arrayBuffer();
-  fs.writeFileSync(lzhPath, Buffer.from(buffer));
+  const data = Buffer.from(buffer);
+
+  // --- LZH形式チェック ---
+  if (!data.slice(0, 3).equals(Buffer.from([0x2D, 0x6C, 0x68]))) {
+    console.log(`⚠️ ${dateStr}.lzh はLZH形式ではありません（HTMLの可能性）`);
+    return null;
+  }
+
+  fs.writeFileSync(lzhPath, data);
   console.log(`✅ LZH保存完了: ${lzhPath}`);
   return lzhPath;
 }
@@ -64,10 +73,10 @@ async function extractAndParse(lzhPath) {
 
 async function main() {
   console.log("🚀 公式LZHデータ取得を開始します...");
-  let lzhFile = await tryDownload(todayStr);
 
-  if (!lzhFile || fs.statSync(lzhFile).size < 500) {
-    console.log("⚠️ 当日データなし → 前日分に切替");
+  let lzhFile = await tryDownload(todayStr);
+  if (!lzhFile) {
+    console.log("⚠️ 当日データなし → 前日分に切替します");
     lzhFile = await tryDownload(yesterdayStr);
   }
 
