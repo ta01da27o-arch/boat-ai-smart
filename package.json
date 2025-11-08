@@ -1,18 +1,21 @@
 {
   "name": "boat-ai-smart",
   "version": "1.0.0",
+  "description": "競艇 AI 予想アプリ",
+  "main": "server/fetchKyotei24.js",
   "type": "module",
-  "description": "Boat Race AI Smart Data Fetcher (Official LZH + API Hybrid)",
-  "main": "server/fetchApiPrograms.js",
   "scripts": {
-    "start": "node server/fetchApiPrograms.js",
-    "fetch": "node server/fetchApiPrograms.js"
+    "start": "node server/app.js",
+    "fetch-kyotei24": "node server/fetchKyotei24.js"
   },
   "dependencies": {
-    "axios": "^1.7.4",
-    "cheerio": "^1.0.0-rc.12"
+    "axios": "^1.7.0",
+    "cheerio": "^1.0.0-rc.12",
+    "date-fns": "^2.30.0"
   },
-  "devDependencies": {},
-  "author": "",
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "author": "Your Name",
   "license": "MIT"
 }
