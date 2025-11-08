@@ -1,142 +1,115 @@
+// server/fetchApiPrograms.js
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
+import cheerio from "cheerio";
 import { chromium } from "playwright";
 
-const __dirname = path.resolve();
-const DATA_DIR = path.join(__dirname, "server", "data");
-const OUTPUT_PATH = path.join(DATA_DIR, "data.json");
+const OUTPUT_PATH = path.resolve("./server/data/data.json");
+const HISTORY_PATH = path.resolve("./server/data/history.json");
+const VENUE_CODES = Array.from({ length: 24 }, (_, i) => i + 1);
+const API_BASE = "https://api.boatrace-db.net/v1/races/today"; // 完全無料の代替API例
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-/**
- * 指定場のレースデータを外部APIまたはHTMLスクレイピングで取得
- */
-async function fetchRaceData(stadiumNumber, retry = 0) {
-  const apiUrl = `https://www.boatrace.jp/owpc/pc/race/racelist?rno=1&jcd=${String(
-    stadiumNumber
-  ).padStart(2, "0")}`;
-
-  try {
-    console.log(`🌊 ${String(stadiumNumber).padStart(2, "0")}番場：取得中 (${retry + 1}回目)`);
-
-    const res = await fetch(apiUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const html = await res.text();
-    const $ = cheerio.load(html);
-
-    // レース一覧をパース
-    const programs = [];
-    $(".race_table1 tbody tr").each((i, el) => {
-      const raceNo = $(el).find(".is-fs18").text().trim();
-      const title = $(el).find(".is-fs12").text().trim();
-      if (raceNo) {
-        programs.push({
-          race_number: Number(raceNo),
-          race_title: title,
-          race_stadium_number: stadiumNumber,
-        });
-      }
-    });
-
-    if (programs.length === 0) throw new Error("HTML構造にデータなし");
-    return programs;
-
-  } catch (err) {
-    // リトライ処理
-    if (retry < 2) {
-      console.warn(`⚠️ ${stadiumNumber}番場：失敗 → 再試行します (${retry + 1})`);
-      await new Promise((r) => setTimeout(r, 2000));
-      return fetchRaceData(stadiumNumber, retry + 1);
-    }
-    console.error(`❌ ${stadiumNumber}番場：データ取得失敗 (${err.message})`);
-    return [];
-  }
-}
-
-/**
- * PlaywrightでのHTML取得 (API失敗時のバックアップ)
- */
-async function fetchWithPlaywright(stadiumNumber) {
-  const url = `https://www.boatrace.jp/owpc/pc/race/racelist?rno=1&jcd=${String(
-    stadiumNumber
-  ).padStart(2, "0")}`;
-
-  let browser;
-  try {
-    browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-    const html = await page.content();
-
-    const $ = cheerio.load(html);
-    const programs = [];
-    $(".race_table1 tbody tr").each((i, el) => {
-      const raceNo = $(el).find(".is-fs18").text().trim();
-      const title = $(el).find(".is-fs12").text().trim();
-      if (raceNo) {
-        programs.push({
-          race_number: Number(raceNo),
-          race_title: title,
-          race_stadium_number: stadiumNumber,
-        });
-      }
-    });
-
-    return programs;
-
-  } catch (err) {
-    console.error(`⚠️ Playwrightスクレイピング失敗 (${stadiumNumber}番場): ${err.message}`);
-    return [];
-
-  } finally {
-    if (browser) await browser.close();
-  }
-}
-
-/**
- * 全場のデータ取得
- */
-async function main() {
+// === Main ===
+(async () => {
   console.log("🚀 外部APIからレースデータを取得しています...");
-  const allData = [];
-  const totalVenues = 24;
+  let allPrograms = [];
 
-  for (let i = 1; i <= totalVenues; i++) {
-    let programs = await fetchRaceData(i);
-
-    // HTMLスクレイピングへフォールバック
-    if (programs.length === 0) {
-      console.warn(`⚠️ ${String(i).padStart(2, "0")}番場：HTMLスクレイピングに切替`);
-      programs = await fetchWithPlaywright(i);
-    }
-
-    if (programs.length === 0) {
-      console.warn(`⚠️ ${String(i).padStart(2, "0")}番場：レース情報なし`);
+  try {
+    // ===== ① 外部API からデータ取得 =====
+    const res = await fetch(API_BASE);
+    if (res.ok) {
+      const apiData = await res.json();
+      if (apiData?.races?.length > 0) {
+        allPrograms = apiData.races;
+        console.log(`✅ 外部APIから ${allPrograms.length} 件取得成功`);
+      } else {
+        throw new Error("API空データ");
+      }
     } else {
-      allData.push(...programs);
+      throw new Error(`HTTP ${res.status}`);
     }
+  } catch (e) {
+    console.log(`⚠️ API接続失敗 → HTMLスクレイピングに切替\n理由: ${e.message}`);
+    allPrograms = await scrapeBoatraceJP();
   }
 
-  if (allData.length === 0) {
+  if (!allPrograms || allPrograms.length === 0) {
     console.error("❌ データ取得失敗：レース情報が空です");
     process.exit(1);
   }
 
-  const output = {
+  // ===== データ保存 =====
+  const result = {
     updated: new Date().toISOString(),
-    venues: { programs: allData },
+    venues: { programs: allPrograms },
   };
 
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
+  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(result, null, 2));
   console.log(`✅ データ保存完了: ${OUTPUT_PATH}`);
-}
 
-main().catch((err) => {
-  console.error("❌ 致命的エラー:", err);
-  process.exit(1);
-});
+  // ===== history.json更新 =====
+  const history = fs.existsSync(HISTORY_PATH)
+    ? JSON.parse(fs.readFileSync(HISTORY_PATH, "utf-8"))
+    : [];
+  history.push({ time: new Date().toISOString(), count: allPrograms.length });
+  fs.writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2));
+  console.log("✅ history.json 更新完了");
+})();
+
+/**
+ * 🕵️ boatrace.jpからスクレイピング（バックアップ）
+ */
+async function scrapeBoatraceJP() {
+  console.log("🌐 HTMLスクレイピング開始...");
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  const today = new Date();
+  const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, "");
+
+  let allPrograms = [];
+
+  for (const jcd of VENUE_CODES) {
+    console.log(`🌊 ${String(jcd).padStart(2, "0")}番場：取得中...`);
+    const url = `https://www.boatrace.jp/owpc/pc/race/racelist?hd=${yyyymmdd}&jcd=${String(
+      jcd
+    ).padStart(2, "0")}`;
+
+    try {
+      await page.goto(url, { waitUntil: "networkidle" });
+      const html = await page.content();
+      const $ = cheerio.load(html);
+
+      const races = $(".race_list_table tr")
+        .map((_, el) => {
+          const raceTitle = $(el).find(".race_title").text().trim();
+          if (!raceTitle) return null;
+
+          return {
+            race_date: today.toISOString().slice(0, 10),
+            race_stadium_number: jcd,
+            race_number: Number($(el).find(".race_no").text().trim()) || 0,
+            race_title: raceTitle,
+            race_subtitle: $(el).find(".subtitle").text().trim(),
+            race_distance: 1800,
+            boats: [],
+          };
+        })
+        .get();
+
+      if (races.length > 0) {
+        console.log(`✅ ${jcd}番場：${races.length}R取得`);
+        allPrograms.push(...races);
+      } else {
+        console.log(`⚠️ ${jcd}番場：レース情報なし`);
+      }
+    } catch (err) {
+      console.log(`❌ ${jcd}番場：取得失敗 (${err.message})`);
+    }
+  }
+
+  await browser.close();
+  return allPrograms;
+}
