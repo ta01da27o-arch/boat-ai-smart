@@ -1,52 +1,35 @@
-name: Fetch AI Race Data
+name: Fetch API Data (Auto & Manual)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *" # JST12:00頃に自動実行
+    - cron: "0 3 * * *"  # JST 12:00頃
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install dependencies
         run: |
-          npm install
           npm install node-fetch@3 cheerio playwright
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+      - name: Install browsers for Playwright
+        run: npx playwright install chromium
 
-      - name: Fetch race data
-        run: |
-          cd server
-          node fetchApiPrograms.js
+      - name: Run fetch
+        run: node server/fetchApiPrograms.js
 
-      - name: Generate AI predictions
-        run: |
-          cd server
-          node fetchAllAI.js
-
-      - name: Commit and Push updated data
+      - name: Commit updated data
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add server/data/*.json server/data/*.csv
-          git commit -m "🔄 Auto Update: Race data + AI predictions" || echo "No changes to commit"
+          git add server/data/*.json
+          git commit -m "🔄 Auto Update Race Data" || echo "No changes to commit"
           git push
-
-      - name: Show output files
-        run: |
-          echo "=== data.json ==="
-          cat server/data/data.json || echo "data.json not found"
-          echo "=== predictions.csv ==="
-          cat server/data/predictions.csv || echo "predictions.csv not found"
