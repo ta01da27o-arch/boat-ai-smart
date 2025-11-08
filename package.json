@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server/fetchApiPrograms.js"
+    "fetch": "node server/fetchApiPrograms.js"
   },
   "dependencies": {
-    "playwright": "^1.48.2"
+    "node-fetch": "^3.3.2",
+    "iconv-lite": "^0.6.3"
   }
 }
