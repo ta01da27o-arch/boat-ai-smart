@@ -1,9 +1,9 @@
-name: Fetch Kyotei24 Race Data
+name: Fetch Kyotei24 Data
 
 on:
-  workflow_dispatch:   # 手動実行
+  workflow_dispatch: # 手動実行
   schedule:
-    - cron: "0 3 * * *"  # 毎日 3:00 に自動実行
+    - cron: "0 3 * * *" # 毎日 3:00 に自動実行
 
 jobs:
   fetch:
@@ -19,7 +19,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm install axios cheerio
+        run: npm install
 
       - name: Fetch Kyotei24 data
         run: node server/fetchKyotei24.js
@@ -29,5 +29,5 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add server/data/data.json
-          git commit -m "🔄 Update race data via kyotei24" || echo "No changes to commit"
+          git commit -m "🔄 Update race data via kyotei24" || echo "No changes"
           git push
