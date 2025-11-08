@@ -6,48 +6,79 @@ import { execSync } from "child_process";
 import { parseLzhTextToJson } from "./parseLzhData.js";
 
 const DATA_DIR = path.join(process.cwd(), "server", "data");
-const DATE_STR = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // 例: 20251108
-const LZH_URL = `https://www.boatrace.jp/owpc/pc/extra/data/kaisyuu/${DATE_STR}.lzh`;
-const LZH_FILE = path.join(DATA_DIR, `${DATE_STR}.lzh`);
-const TXT_FILE = path.join(DATA_DIR, `${DATE_STR}.TXT`);
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(today.getDate() - 1);
+
+const formatDate = (d) =>
+  d.toISOString().slice(0, 10).replace(/-/g, "");
+
+const todayStr = formatDate(today);
+const yesterdayStr = formatDate(yesterday);
+
 const OUTPUT_JSON = path.join(DATA_DIR, "data.json");
 
-async function main() {
-  console.log("🚀 公式LZHデータダウンロードを開始します...");
+async function tryDownload(dateStr) {
+  const url = `https://www.boatrace.jp/owpc/pc/extra/data/kaisyuu/${dateStr}.lzh`;
+  const lzhPath = path.join(DATA_DIR, `${dateStr}.lzh`);
+  console.log(`📥 ダウンロード試行: ${url}`);
 
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
-  try {
-    const res = await fetch(LZH_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buffer = await res.arrayBuffer();
-    fs.writeFileSync(LZH_FILE, Buffer.from(buffer));
-    console.log(`✅ LZHファイル保存完了: ${LZH_FILE}`);
-  } catch (e) {
-    console.error("❌ LZHダウンロード失敗:", e.message);
-    process.exit(1);
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.log(`⚠️ ${dateStr} のLZHは存在しません (HTTP ${res.status})`);
+    return null;
   }
+  const buffer = await res.arrayBuffer();
+  fs.writeFileSync(lzhPath, Buffer.from(buffer));
+  console.log(`✅ LZH保存完了: ${lzhPath}`);
+  return lzhPath;
+}
 
+async function extractAndParse(lzhPath) {
   try {
-    console.log("📦 LZHファイルを解凍します...");
-    execSync(`7z e "${LZH_FILE}" -o"${DATA_DIR}" -y`);
-    console.log(`✅ TXTファイル展開完了: ${TXT_FILE}`);
-  } catch (e) {
-    console.error("❌ LZH展開失敗:", e.message);
-    process.exit(1);
-  }
+    console.log("📦 LZHを展開中...");
+    execSync(`7z e "${lzhPath}" -o"${DATA_DIR}" -y`);
+    const txtFile = fs
+      .readdirSync(DATA_DIR)
+      .find((f) => f.toLowerCase().endsWith(".txt"));
 
-  try {
-    console.log("🔍 データ解析中...");
-    const sjisBuffer = fs.readFileSync(TXT_FILE);
+    if (!txtFile) throw new Error("TXTファイルが見つかりません");
+    const txtPath = path.join(DATA_DIR, txtFile);
+    console.log(`✅ 展開完了: ${txtPath}`);
+
+    const sjisBuffer = fs.readFileSync(txtPath);
     const utf8Text = iconv.decode(sjisBuffer, "Shift_JIS");
     const jsonData = parseLzhTextToJson(utf8Text);
-
     jsonData.updated = new Date().toISOString();
+
     fs.writeFileSync(OUTPUT_JSON, JSON.stringify(jsonData, null, 2));
     console.log(`✅ JSON保存完了: ${OUTPUT_JSON}`);
-  } catch (e) {
-    console.error("❌ データ解析失敗:", e.message);
+    return true;
+  } catch (err) {
+    console.error("❌ LZH解析失敗:", err.message);
+    return false;
+  }
+}
+
+async function main() {
+  console.log("🚀 公式LZHデータ取得を開始します...");
+  let lzhFile = await tryDownload(todayStr);
+
+  if (!lzhFile || fs.statSync(lzhFile).size < 500) {
+    console.log("⚠️ 当日データなし → 前日分に切替");
+    lzhFile = await tryDownload(yesterdayStr);
+  }
+
+  if (!lzhFile) {
+    console.error("❌ ダウンロード可能なLZHが見つかりません");
+    process.exit(1);
+  }
+
+  const success = await extractAndParse(lzhFile);
+  if (!success) {
+    console.error("❌ データ取得に失敗しました");
     process.exit(1);
   }
 }
