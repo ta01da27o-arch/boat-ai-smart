@@ -2,13 +2,13 @@
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
-import cheerio from "cheerio";
+import * as cheerio from "cheerio"; // ✅ 修正版
 import { chromium } from "playwright";
 
 const OUTPUT_PATH = path.resolve("./server/data/data.json");
 const HISTORY_PATH = path.resolve("./server/data/history.json");
 const VENUE_CODES = Array.from({ length: 24 }, (_, i) => i + 1);
-const API_BASE = "https://api.boatrace-db.net/v1/races/today"; // 完全無料の代替API例
+const API_BASE = "https://api.boatrace-db.net/v1/races/today"; // 仮API
 
 // === Main ===
 (async () => {
