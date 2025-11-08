@@ -1,107 +1,55 @@
-// server/fetchApiPrograms.js
 import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
-import * as cheerio from "cheerio";
-import { chromium } from "playwright";
+import iconv from "iconv-lite";
+import { execSync } from "child_process";
+import { parseLzhTextToJson } from "./parseLzhData.js";
 
-const OUTPUT_PATH = path.resolve("./server/data/data.json");
-const HISTORY_PATH = path.resolve("./server/data/history.json");
-const VENUE_CODES = Array.from({ length: 24 }, (_, i) => i + 1);
-const API_BASE = "https://api.boatrace-db.net/v1/races/today";
+const DATA_DIR = path.join(process.cwd(), "server", "data");
+const DATE_STR = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // 例: 20251108
+const LZH_URL = `https://www.boatrace.jp/owpc/pc/extra/data/kaisyuu/${DATE_STR}.lzh`;
+const LZH_FILE = path.join(DATA_DIR, `${DATE_STR}.lzh`);
+const TXT_FILE = path.join(DATA_DIR, `${DATE_STR}.TXT`);
+const OUTPUT_JSON = path.join(DATA_DIR, "data.json");
 
-(async () => {
-  console.log("🚀 外部APIからレースデータを取得しています...");
-  let allPrograms = [];
+async function main() {
+  console.log("🚀 公式LZHデータダウンロードを開始します...");
+
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
   try {
-    const res = await fetch(API_BASE, { timeout: 10000 });
-    if (res.ok) {
-      const apiData = await res.json();
-      if (apiData?.races?.length > 0) {
-        allPrograms = apiData.races;
-        console.log(`✅ 外部APIから ${allPrograms.length} 件取得成功`);
-      } else throw new Error("API空データ");
-    } else throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(LZH_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    fs.writeFileSync(LZH_FILE, Buffer.from(buffer));
+    console.log(`✅ LZHファイル保存完了: ${LZH_FILE}`);
   } catch (e) {
-    console.log(`⚠️ API接続失敗 → HTMLスクレイピングに切替 (${e.message})`);
-    allPrograms = await scrapeBoatraceJP();
-  }
-
-  if (!allPrograms || allPrograms.length === 0) {
-    console.error("❌ データ取得失敗：レース情報が空です");
+    console.error("❌ LZHダウンロード失敗:", e.message);
     process.exit(1);
   }
 
-  const result = {
-    updated: new Date().toISOString(),
-    venues: { programs: allPrograms },
-  };
-
-  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(result, null, 2));
-  console.log(`✅ データ保存完了: ${OUTPUT_PATH}`);
-
-  const history = fs.existsSync(HISTORY_PATH)
-    ? JSON.parse(fs.readFileSync(HISTORY_PATH, "utf-8"))
-    : [];
-  history.push({ time: new Date().toISOString(), count: allPrograms.length });
-  fs.writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2));
-  console.log("✅ history.json 更新完了");
-})();
-
-/** HTMLスクレイピング処理 */
-async function scrapeBoatraceJP() {
-  console.log("🌐 HTMLスクレイピング開始...");
-  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
-  const page = await browser.newPage();
-
-  const today = new Date();
-  const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, "");
-  let allPrograms = [];
-
-  for (const jcd of VENUE_CODES) {
-    const code = String(jcd).padStart(2, "0");
-    const url = `https://www.boatrace.jp/owpc/pc/race/racelist?hd=${yyyymmdd}&jcd=${code}`;
-    console.log(`🌊 ${code}番場：取得中...`);
-
-    try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-
-      // ページ読み込み後に一拍待つ（JS生成を待つ）
-      await page.waitForTimeout(2000);
-
-      const html = await page.content();
-      const $ = cheerio.load(html);
-      const raceRows = $(".table1 tbody tr");
-
-      const races = raceRows
-        .map((_, el) => {
-          const title = $(el).find(".is-fs18").text().trim();
-          if (!title) return null;
-          return {
-            race_date: today.toISOString().slice(0, 10),
-            race_stadium_number: jcd,
-            race_number: Number($(el).find(".is-fs12").text().replace("R", "").trim()) || 0,
-            race_title: title,
-            race_subtitle: $(el).find(".table1_boatTitle").text().trim(),
-            race_distance: 1800,
-            boats: [],
-          };
-        })
-        .get();
-
-      if (races.length > 0) {
-        console.log(`✅ ${code}番場：${races.length}R取得`);
-        allPrograms.push(...races);
-      } else {
-        console.log(`⚠️ ${code}番場：レース情報なし`);
-      }
-    } catch (err) {
-      console.log(`❌ ${code}番場：取得失敗 (${err.message})`);
-    }
+  try {
+    console.log("📦 LZHファイルを解凍します...");
+    execSync(`7z e "${LZH_FILE}" -o"${DATA_DIR}" -y`);
+    console.log(`✅ TXTファイル展開完了: ${TXT_FILE}`);
+  } catch (e) {
+    console.error("❌ LZH展開失敗:", e.message);
+    process.exit(1);
   }
 
-  await browser.close();
-  return allPrograms;
+  try {
+    console.log("🔍 データ解析中...");
+    const sjisBuffer = fs.readFileSync(TXT_FILE);
+    const utf8Text = iconv.decode(sjisBuffer, "Shift_JIS");
+    const jsonData = parseLzhTextToJson(utf8Text);
+
+    jsonData.updated = new Date().toISOString();
+    fs.writeFileSync(OUTPUT_JSON, JSON.stringify(jsonData, null, 2));
+    console.log(`✅ JSON保存完了: ${OUTPUT_JSON}`);
+  } catch (e) {
+    console.error("❌ データ解析失敗:", e.message);
+    process.exit(1);
+  }
 }
+
+main();
