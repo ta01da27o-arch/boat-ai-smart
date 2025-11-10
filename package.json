@@ -1,21 +1,12 @@
 {
-  "name": "boat-ai-smart",
+  "name": "boat-race-pdf-fetcher-optimized",
   "version": "1.0.0",
-  "description": "競艇 AI 予想アプリ",
-  "main": "server/fetchKyotei24.js",
   "type": "module",
   "scripts": {
-    "start": "node server/app.js",
-    "fetch-kyotei24": "node server/fetchKyotei24.js"
+    "fetch": "node fetchRaceDataPdfOptimized.js"
   },
   "dependencies": {
-    "axios": "^1.7.0",
-    "cheerio": "^1.0.0-rc.12",
-    "date-fns": "^2.30.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  },
-  "author": "Your Name",
-  "license": "MIT"
+    "node-fetch": "^3.3.2",
+    "pdf-parse": "^1.1.1"
+  }
 }
