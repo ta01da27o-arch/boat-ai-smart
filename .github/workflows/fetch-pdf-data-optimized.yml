@@ -1,0 +1,34 @@
+name: Fetch Boat Race PDF Data Optimized
+
+on:
+  schedule:
+    - cron: '0 23 * * *' # 毎日 JST 08:00
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Fetch boat race PDF data
+        run: npm run fetch
+
+      - name: Upload data as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: race-pdf-data-optimized
+          path: data/raceDataPdfOptimized.json
